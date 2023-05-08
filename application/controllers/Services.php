@@ -262,4 +262,29 @@ class Services extends CI_Controller {
 			}
 		}
 	}
+
+	public function fetch_packages()
+	{
+		$q = $this->db->select('id, package_img')->where('status', 1)->get('os_predefined_packages');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			foreach ($q->result() as $key => $value) {
+				if($value->package_img) {
+					$value->package_img = base_url().'image/predefined_packages/'.$value->package_img;
+				}
+			}
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Package Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		}
+	}
 }

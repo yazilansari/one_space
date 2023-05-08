@@ -57,3 +57,4 @@ $route['v1/verifyMobileNumber'] = 'services/verify_mobile_number';
 $route['v1/verifyOTP'] = 'services/verify_otp';
 $route['v1/fetchCities'] = 'services/fetch_cities';
 $route['v1/register'] = 'services/register';
+$route['v1/fetchPackages'] = 'services/fetch_packages';
