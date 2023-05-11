@@ -205,6 +205,9 @@ class Services extends CI_Controller {
 		$signup_location_id = $this->input->post('signup_location_id');
 		$flat_type = $this->input->post('flat_type');
 		$project_type = $this->input->post('project_type');
+		$device_id = $this->input->post('device_id');
+		$device_type = $this->input->post('device_type');
+		$fcm_token = $this->input->post('fcm_token');
 
 		if(empty($first_name)) {
 			$response['success'] = false;
@@ -240,7 +243,7 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);
 		} else {
-			$q = $this->db->insert('os_customer', array('firstname' => $first_name, 'lastname' => $last_name, 'email' => $email, 'telephone' => $mobile_no, 'signup_location_id' => $signup_location_id, 'date_added' => date('Y-m-d H:i:s')));
+			$q = $this->db->insert('os_customer', array('firstname' => $first_name, 'lastname' => $last_name, 'email' => $email, 'telephone' => $mobile_no, 'signup_location_id' => $signup_location_id, 'date_added' => date('Y-m-d H:i:s'), 'device_id' => $device_id, 'device_type' => $device_type, 'fcm_token' => $fcm_token));
 			if($q) {
 				$customer_id = $this->db->insert_id();
 				$this->db->insert('os_st_leads', array('customer_id' => $customer_id, 'flat_type' => $flat_type, 'project_type' => $project_type));
@@ -283,6 +286,32 @@ class Services extends CI_Controller {
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Package Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		}
+	}
+
+	public function fetch_partner_projects()
+	{
+		$q = $this->db->select('sbad.simple_blog_article_description_id, sbad.simple_blog_article_id, sbad.article_title')
+					->from('os_simple_blog_article sba')
+					->join('os_simple_blog_article_description sbad', 'sba.simple_blog_article_id = sbad.simple_blog_article_id', 'left')
+					->join('os_simple_blog_article_to_store sbas', 'sba.simple_blog_article_id = sbas.simple_blog_article_id', 'left')
+					->join('os_simple_blog_author sbau', 'sba.simple_blog_author_id = sbau.simple_blog_author_id', 'left')
+					->join('os_simple_blog_article_to_category sbac', 'sba.simple_blog_article_id = sbac.simple_blog_article_id', 'left')
+					->where(['sbac.simple_blog_category_id' => 5, 'sba.status' => 1, 'sbau.status' => 1, 'sbas.store_id' => 0, 'language_id' => 1])
+					->get();
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Partner Project Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);
 		}

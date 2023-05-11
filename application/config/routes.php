@@ -58,3 +58,4 @@ $route['v1/verifyOTP'] = 'services/verify_otp';
 $route['v1/fetchCities'] = 'services/fetch_cities';
 $route['v1/register'] = 'services/register';
 $route['v1/fetchPackages'] = 'services/fetch_packages';
+$route['v1/fetchPartnerProjects'] = 'services/fetch_partner_projects';
