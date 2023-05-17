@@ -268,7 +268,7 @@ class Services extends CI_Controller {
 
 	public function fetch_packages()
 	{
-		$q = $this->db->select('id, package_name, package_img')->where('status', 1)->get('os_packages');
+		$q = $this->db->select('id, package_name, package_img')->where('status', 1)->get('osl_packages');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -319,7 +319,7 @@ class Services extends CI_Controller {
 
 	public function fetch_brand_sheets()
 	{
-		$q = $this->db->select('id, brand_sheet_type, brand_sheet_img')->where('status', 1)->get('os_brand_sheets');
+		$q = $this->db->select('id, brand_sheet_type, brand_sheet_img')->where('status', 1)->get('osl_brand_sheets');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -344,7 +344,7 @@ class Services extends CI_Controller {
 
 	public function fetch_room_types()
 	{
-		$q = $this->db->select('id, room_type')->where('status', 1)->get('os_room_types');
+		$q = $this->db->select('id, room_type')->where('status', 1)->get('osl_room_types');
 		$response = array();
 		if($q->num_rows() > 0) {
 
