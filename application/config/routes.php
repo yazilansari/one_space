@@ -59,3 +59,5 @@ $route['v1/fetchCities'] = 'services/fetch_cities';
 $route['v1/register'] = 'services/register';
 $route['v1/fetchPackages'] = 'services/fetch_packages';
 $route['v1/fetchPartnerProjects'] = 'services/fetch_partner_projects';
+$route['v1/fetchBrandSheets'] = 'services/fetch_brand_sheets';
+$route['v1/fetchRoomTypes'] = 'services/fetch_room_types';

@@ -268,13 +268,13 @@ class Services extends CI_Controller {
 
 	public function fetch_packages()
 	{
-		$q = $this->db->select('id, package_img')->where('status', 1)->get('os_predefined_packages');
+		$q = $this->db->select('id, package_name, package_img')->where('status', 1)->get('os_packages');
 		$response = array();
 		if($q->num_rows() > 0) {
 
 			foreach ($q->result() as $key => $value) {
 				if($value->package_img) {
-					$value->package_img = base_url().'image/predefined_packages/'.$value->package_img;
+					$value->package_img = base_url().'image/packages/'.$value->package_img;
 				}
 			}
 
@@ -312,6 +312,50 @@ class Services extends CI_Controller {
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Partner Project Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		}
+	}
+
+	public function fetch_brand_sheets()
+	{
+		$q = $this->db->select('id, brand_sheet_type, brand_sheet_img')->where('status', 1)->get('os_brand_sheets');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			foreach ($q->result() as $key => $value) {
+				if($value->brand_sheet_img) {
+					$value->brand_sheet_img = base_url().'image/brand_sheets/'.$value->brand_sheet_img;
+				}
+			}
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Brand Sheet Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		}
+	}
+
+	public function fetch_room_types()
+	{
+		$q = $this->db->select('id, room_type')->where('status', 1)->get('os_room_types');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Room Type Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);
 		}
