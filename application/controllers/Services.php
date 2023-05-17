@@ -268,7 +268,7 @@ class Services extends CI_Controller {
 
 	public function fetch_packages()
 	{
-		$q = $this->db->select('id, package_name, package_img')->where('status', 1)->get('osl_packages');
+		$q = $this->db->select('id, package_name, package_description, package_img')->where('status', 1)->get('osl_packages');
 		$response = array();
 		if($q->num_rows() > 0) {
 
