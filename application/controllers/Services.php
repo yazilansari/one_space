@@ -46,19 +46,19 @@ class Services extends CI_Controller {
 		            	$response['success'] = true;
 						$response['message'] = 'Your OTP has been Sent.';
 						header('Content-Type: application/json; charset=utf-8');
-						echo json_encode($response);
+						echo json_encode($response);exit();
 		            } else {
 		            	$response['success'] = false;
 						$response['message'] = 'Error Occurred While Sending OTP.';
 						header('Content-Type: application/json; charset=utf-8');
-						echo json_encode($response);
+						echo json_encode($response);exit();
 		            }
 			        curl_close($curl);
 				} else {
 					$response['success'] = false;
 					$response['message'] = 'Your Mobile Number is Not Registered.';
 					header('Content-Type: application/json; charset=utf-8');
-					echo json_encode($response);
+					echo json_encode($response);exit();
 				}
 			} else {
 				$q = $this->db->insert('os_signup_otp', array('mobile_number' => $mobile_no, 'deviceid' => $device_id));
@@ -97,26 +97,26 @@ class Services extends CI_Controller {
 		            	$response['success'] = true;
 						$response['message'] = 'Your OTP has been Sent.';
 						header('Content-Type: application/json; charset=utf-8');
-						echo json_encode($response);
+						echo json_encode($response);exit();
 		            } else {
 		            	$response['success'] = false;
 						$response['message'] = 'Error Occurred While Sending OTP.';
 						header('Content-Type: application/json; charset=utf-8');
-						echo json_encode($response);
+						echo json_encode($response);exit();
 		            }
 			        curl_close($curl);
 				} else {
 					$response['success'] = false;
 					$response['message'] = 'Error Occurred While Register.';
 					header('Content-Type: application/json; charset=utf-8');
-					echo json_encode($response);
+					echo json_encode($response);exit();
 				}
 			}
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'Please Enter Mobile Number.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		}
 	}
 
@@ -143,18 +143,26 @@ class Services extends CI_Controller {
 			$response = array();
 			if($q->num_rows() > 0) {
 
+				$customer_id = (int) $q->row()->customer_id;
+				$firstname = $q->row()->firstname;
+				$lastname = $q->row()->lastname;
+				$email = $q->row()->email;
+				$telephone = $q->row()->telephone;
+
+				$data = array('customer_id' => $customer_id, 'firstname' => $firstname, 'lastname' => $lastname, 'email' => $email, 'telephone' => $telephone,);
+
 				$this->db->where('telephone', $mobile_no)->update('os_customer', array('otp' => 0));
 
 				$response['success'] = true;
 				$response['message'] =  'Logged in Successfully.';
-				$response['response'] = $q->row();
+				$response['response'] = $data;
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);
+				echo json_encode($response);exit();
 			} else {
 				$response['success'] = false;
 				$response['message'] = 'Invalid OTP.';
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);
+				echo json_encode($response);exit();
 			}
 		} else {
 			$q = $this->db->where(array('mobile_number' => $mobile_no, 'otp' => $otp))->get('os_signup_otp');
@@ -167,12 +175,12 @@ class Services extends CI_Controller {
 				$response['message'] =  'Verified Successfully.';
 				// $response['response'] = $q->row();
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);
+				echo json_encode($response);exit();
 			} else {
 				$response['success'] = false;
 				$response['message'] = 'Invalid OTP.';
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);
+				echo json_encode($response);exit();
 			}
 		}
 	}
@@ -187,12 +195,12 @@ class Services extends CI_Controller {
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->result();
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No City Found.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		}
 	}
 
@@ -241,7 +249,7 @@ class Services extends CI_Controller {
 			$response['success'] = false;
 			$response['message'] = 'Mobile Number Already Exist.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		} else {
 			$q = $this->db->insert('os_customer', array('firstname' => $first_name, 'lastname' => $last_name, 'email' => $email, 'telephone' => $mobile_no, 'signup_location_id' => $signup_location_id, 'date_added' => date('Y-m-d H:i:s'), 'device_id' => $device_id, 'device_type' => $device_type, 'fcm_token' => $fcm_token));
 			if($q) {
@@ -256,25 +264,25 @@ class Services extends CI_Controller {
 				$response['message'] = 'Registered Successfully.';
 				$response['response'] = $data;
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);
+				echo json_encode($response);exit();
 			} else {
 				$response['success'] = false;
 				$response['message'] = 'Error Occurred While Register.';
 				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);
+				echo json_encode($response);exit();
 			}
 		}
 	}
 
 	public function fetch_packages()
 	{
-		$q = $this->db->select('id, package_name, package_description, package_img')->where('status', 1)->get('osl_packages');
+		$q = $this->db->select('id, name, description, image')->where('status', 1)->get('osl_packages');
 		$response = array();
 		if($q->num_rows() > 0) {
 
 			foreach ($q->result() as $key => $value) {
-				if($value->package_img) {
-					$value->package_img = base_url().'image/packages/'.$value->package_img;
+				if($value->image) {
+					$value->image = base_url().'image/packages/'.$value->image;
 				}
 			}
 
@@ -282,12 +290,12 @@ class Services extends CI_Controller {
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->result();
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Package Found.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		}
 	}
 
@@ -308,24 +316,24 @@ class Services extends CI_Controller {
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->result();
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Partner Project Found.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		}
 	}
 
 	public function fetch_brand_sheets()
 	{
-		$q = $this->db->select('id, brand_sheet_type, brand_sheet_img')->where('status', 1)->get('osl_brand_sheets');
+		$q = $this->db->select('id, name, image, description')->where('status', 1)->get('osl_parent_brand_sheets');
 		$response = array();
 		if($q->num_rows() > 0) {
 
 			foreach ($q->result() as $key => $value) {
-				if($value->brand_sheet_img) {
-					$value->brand_sheet_img = base_url().'image/brand_sheets/'.$value->brand_sheet_img;
+				if($value->image) {
+					$value->image = base_url().'image/brand_sheets/'.$value->image;
 				}
 			}
 
@@ -333,12 +341,12 @@ class Services extends CI_Controller {
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->result();
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Brand Sheet Found.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		}
 	}
 
@@ -352,12 +360,234 @@ class Services extends CI_Controller {
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->result();
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Room Type Found.';
 			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function store_project()
+	{
+		$user_id = $this->input->post('user_id');
+		$property_name = $this->input->post('property_name');
+		$package = $this->input->post('package');
+		$brandsheet = $this->input->post('brandsheet');
+		$property_type = $this->input->post('property_type');
+		$partner_project = $this->input->post('partner_project');
+		$room_type = $this->input->post('room_type');
+		$project_type = $this->input->post('project_type');
+		$project_start_from = $this->input->post('project_start_from');
+		$budget = $this->input->post('budget');
+		$total_area = $this->input->post('total_area');
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($property_name)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Enter Property Name.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($package)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Package.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($brandsheet)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Brand Sheet.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($property_type)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Property Type.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($partner_project)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Partner Project.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($room_type)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Room Type.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($project_type)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Project Type.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($project_start_from)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select When to Start.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($budget)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Budget.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($total_area)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Enter Tentative Sq. Ft.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->insert('osl_cus_projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brand_sheet_id ' => $brandsheet, 'property_type' => $property_type, 'partner_project_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'project_start_from' => $project_start_from, 'budget' => $budget, 'total_area' => $total_area, 'created_at' => date('Y-m-d H:i:s')));
+		if($q) {
+			$response['success'] = true;
+			$response['message'] = 'Data Inserted Successfully.';
+			$response['project_id'] = $this->db->insert_id();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'Error Occurred While Inserting Data.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_parent_categories()
+	{
+		$q = $this->db->select('id, name')->get('osl_parent_categories');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Parent Category Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_categories($user_id, $project_id, $parent_category_id)
+	{
+		$q3 = $this->db->select('package_id, brand_sheet_id')->where(['user_id' => $user_id, 'id' => $project_id])->get('osl_cus_projects');
+		if($q3->num_rows() > 0) {
+			$package_id = $q3->row()->package_id;
+			$brand_sheet_id = $q3->row()->brand_sheet_id;
+			$q4 = $this->db->select('category_id')->where('package_id', $package_id)->get('osl_categories_packages');
+			if($q4->num_rows() > 0) {
+				$category_id = [];
+				foreach($q4->result() as $valu) {
+					array_push($category_id, $valu->category_id);
+				}
+			} else {
+				$category_id = [];
+			}
+		} else {
+			// $package_id = 0;
+			// $brand_sheet_id = 0;
+			$response['success'] = false;
+			$response['message'] = 'No Project Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		// die();
+		$q = $this->db->select('id, name')->where('id', $parent_category_id)->get('osl_parent_categories');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			foreach ($q->result() as $key => $value) {
+				$value->categories = array();
+				$response['response'] = $value;
+				$q2 = $this->db->select('id, name')->where(['parent_category_id' => $parent_category_id, 'status' => 1])->get('osl_categories');
+				if($q2->num_rows() > 0) {
+					foreach ($q2->result() as $key => $val) {
+						$q5 = $this->db->select('brand_sheet_id, name')->where('category_id', $val->id)->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_brand_sheets_categories.brand_sheet_id', 'left')->get('osl_brand_sheets_categories');
+						if($q5->num_rows() > 0) {
+							$brand_sheet_id_arr = [];
+							foreach ($q5->result() as $key => $v) {
+								$q6 = $this->db->select('price')->where(['category_id' => $val->id, 'brand_sheet_id' => $v->brand_sheet_id])->get('osl_products');
+								if($q6->num_rows() > 0) {
+									$price = $q6->row()->price;
+								} else {
+									$price = 0.00;
+								}
+
+								if($brand_sheet_id == $v->brand_sheet_id) {
+									unset($v->brand_sheet_id);
+									$v->price = $price;
+									$v->isSelected = true;
+								} else {
+									unset($v->brand_sheet_id);
+									$v->price = $price;
+									$v->isSelected = false;
+								}
+							}
+						}
+						$val->options = array(array("name" => "Yes", "isSelected" => in_array($val->id, $category_id) ? true : false, 'innerOptions' => $q5->result()), array("name" => "No", "isSelected" => !in_array($val->id, $category_id) ? true : false, 'innerOptions' => array()));
+						array_push($value->categories, $val);
+					}
+					header('Content-Type: application/json; charset=utf-8');
+					echo json_encode($response);exit();
+					// die();
+				} else {
+					$response['success'] = false;
+					$response['message'] = 'No Category Found.';
+					header('Content-Type: application/json; charset=utf-8');
+					echo json_encode($response);exit();
+				}
+			}
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Parent Category Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_products($category_id)
+	{
+		$q = $this->db->select('osl_parent_brand_sheets.id, name')->where('category_id', $category_id)->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_brand_sheets_categories.brand_sheet_id', 'left')->get('osl_brand_sheets_categories');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array();
+			foreach($q->result() as $key => $value) {
+				$q2 = $this->db->select('name, image')->where('brand_sheet_id', $value->id)->get('osl_products');
+				unset($value->id);
+				$value->products = array();
+				if($q2->num_rows() > 0) {
+					$value->products = $q2->result();
+				}
+				array_push($response['response'], $value);
+			}
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Product Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
 		}
 	}
 }

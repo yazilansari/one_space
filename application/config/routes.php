@@ -61,3 +61,7 @@ $route['v1/fetchPackages'] = 'services/fetch_packages';
 $route['v1/fetchPartnerProjects'] = 'services/fetch_partner_projects';
 $route['v1/fetchBrandSheets'] = 'services/fetch_brand_sheets';
 $route['v1/fetchRoomTypes'] = 'services/fetch_room_types';
+$route['v1/storeProject'] = 'services/store_project';
+$route['v1/fetchParentCategories'] = 'services/fetch_parent_categories';
+$route['v1/fetchCategories/(:any)/(:any)/(:any)'] = 'services/fetch_categories/$1/$2/$3';
+$route['v1/fetchProducts/(:any)'] = 'services/fetch_products/$1';
