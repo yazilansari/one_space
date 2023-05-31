@@ -484,8 +484,31 @@ class Services extends CI_Controller {
 		}
 	}
 
-	public function fetch_categories($user_id, $project_id, $parent_category_id)
+	public function fetch_categories()
 	{
+		$user_id = $this->input->post('user_id');
+		$project_id = $this->input->post('project_id');
+		$parent_category_id = $this->input->post('parent_category_id');
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($parent_category_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Parent Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
 		$q3 = $this->db->select('package_id, brand_sheet_id')->where(['user_id' => $user_id, 'id' => $project_id])->get('osl_cus_projects');
 		if($q3->num_rows() > 0) {
 			$package_id = $q3->row()->package_id;
@@ -517,7 +540,7 @@ class Services extends CI_Controller {
 			foreach ($q->result() as $key => $value) {
 				$value->categories = array();
 				$response['response'] = $value;
-				$q2 = $this->db->select('id, name')->where(['parent_category_id' => $parent_category_id, 'status' => 1])->get('osl_categories');
+				$q2 = $this->db->select('id, name, image')->where(['parent_category_id' => $parent_category_id, 'status' => 1])->get('osl_categories');
 				if($q2->num_rows() > 0) {
 					foreach ($q2->result() as $key => $val) {
 						$q5 = $this->db->select('brand_sheet_id, name')->where('category_id', $val->id)->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_brand_sheets_categories.brand_sheet_id', 'left')->get('osl_brand_sheets_categories');
@@ -532,11 +555,11 @@ class Services extends CI_Controller {
 								}
 
 								if($brand_sheet_id == $v->brand_sheet_id) {
-									unset($v->brand_sheet_id);
+									// unset($v->brand_sheet_id);
 									$v->price = $price;
 									$v->isSelected = true;
 								} else {
-									unset($v->brand_sheet_id);
+									// unset($v->brand_sheet_id);
 									$v->price = $price;
 									$v->isSelected = false;
 								}
@@ -563,8 +586,17 @@ class Services extends CI_Controller {
 		}
 	}
 
-	public function fetch_products($category_id)
+	public function fetch_products()
 	{
+		$category_id = $this->input->post('category_id');
+
+		if(empty($category_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
 		$q = $this->db->select('osl_parent_brand_sheets.id, name')->where('category_id', $category_id)->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_brand_sheets_categories.brand_sheet_id', 'left')->get('osl_brand_sheets_categories');
 		$response = array();
 		if($q->num_rows() > 0) {
@@ -586,6 +618,333 @@ class Services extends CI_Controller {
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Product Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function store_requirement()
+	{
+		$post_data = file_get_contents("php://input");
+    	$request = json_decode($post_data);
+
+		$max_req_no = 1;
+		$q = $this->db->select_max('requirement_no')->where('cus_project_id', $request->project_id)->get('osl_cus_project_requirements');
+		if($q->num_rows() > 0) {
+			$max_req_no = $q->row()->requirement_no + 1;
+		}
+		for ($i=0; $i < count($request->parent_category); $i++) {
+			for($j=0; $j < count($request->parent_category[$i]->category); $j++) {
+				// echo "<pre>";print_r($request->parent_category[$i]->category[$j]);
+				$q = $this->db->insert('osl_cus_project_requirements', array('cus_project_id' => $request->project_id, 'category_id' => $request->parent_category[$i]->category[$j]->category_id, 'is_selected ' => $request->parent_category[$i]->category[$j]->is_selected, 'brand_sheet_id ' => $request->parent_category[$i]->category[$j]->brand_sheet_id, 'requirement_no' => $max_req_no, 'created_at' => date('Y-m-d H:i:s')));
+			}
+		}
+		// die();
+		// Include the main TCPDF library (search for installation path).
+		require_once(APPPATH.'TCPDF/tcpdf.php');
+
+		// create new PDF document
+		$pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+		// set document information
+		// $pdf->SetCreator(PDF_CREATOR);
+
+		// set default header data
+		$pdf->SetHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, 'Quotation');
+		// $pdf->setFooterData(array(0,64,0), array(0,64,128));
+
+		// set header and footer fonts
+		$pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
+		// $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
+
+		// set default monospaced font
+		$pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+
+		// set margins
+		$pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+		$pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+		// $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+
+		// set auto page breaks
+		$pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+
+		// set image scale factor
+		$pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+
+		// set some language-dependent strings (optional)
+		if (@file_exists(dirname(__FILE__).'/lang/eng.php')) {
+			require_once(dirname(__FILE__).'/lang/eng.php');
+			$pdf->setLanguageArray($l);
+		}
+
+		// set default font subsetting mode
+		$pdf->setFontSubsetting(true);
+
+		// Set font
+		// dejavusans is a UTF-8 Unicode font, if you only need to
+		// print standard ASCII chars, you can use core fonts like
+		// helvetica or times to reduce file size.
+		// $pdf->SetFont('helvetica', '', 12, '', true);
+
+		// Add a page
+		// This method has several options, check the source code documentation for more information.
+		$pdf->AddPage();
+
+		// Set some content to print
+		$html = '<table border="1" cellpadding="5">';
+		$total = 0;
+
+		for ($i=0; $i < count($request->parent_category); $i++) {
+
+			$parent_category_name = 'No Parent Category';
+			$q = $this->db->select('name')->where('id', $request->parent_category[$i]->parent_category_id)->get('osl_parent_categories');
+			if($q->num_rows() > 0) {
+				$parent_category_name = $q->row()->name;
+			}
+		
+		    $html .= '<tr>
+		        		<td style="font-size: 16px; font-weight: bold;">' . $parent_category_name . '</td>
+		    		</tr>';
+
+		    for ($j=0; $j < count($request->parent_category[$i]->category); $j++) {
+
+		    	$category_name = 'No Category';
+		    	$q2 = $this->db->select('name')->where('id', $request->parent_category[$i]->category[$j]->category_id)->get('osl_categories');
+		    	if($q2->num_rows() > 0) {
+					$category_name = $q2->row()->name;
+		    	}
+
+		    	$brand_sheet_name = 'No Brand Sheet';
+		    	$brand_sheet_price = number_format(0, 2);
+				$q3 = $this->db->select('osl_parent_brand_sheets.name, price')->where('osl_parent_brand_sheets.id', $request->parent_category[$i]->category[$j]->brand_sheet_id)->join('osl_products', 'osl_products.brand_sheet_id = osl_parent_brand_sheets.id', 'left')->get('osl_parent_brand_sheets');
+				if($q3->num_rows() > 0) {
+					$brand_sheet_name = $q3->row()->name;
+					$brand_sheet_price = $q3->row()->price;
+				}
+
+				if($request->parent_category[$i]->category[$j]->is_selected == 1) {
+					$selected = 'Yes';
+				} else {
+					$selected = 'No';
+				}
+
+				$total += $brand_sheet_price;
+
+			    $html .= '<tr>
+			    			<td style="font-size: 14px; font-weight: bold;">' . $category_name . '</td>
+			    		</tr>';
+			    $html .= '<tr>
+			        		<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
+			        	</tr>';
+			    $html .= '<tr>
+			        		<td style="font-size: 12px; font-weight: bold;">' . $brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price. '</td>
+			        	</tr>';
+			}
+		}
+
+		$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
+
+		// Print text using writeHTMLCell()
+		$pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
+
+		// Close and output PDF document
+		// This method has several options, check the source code documentation for more information.
+		$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'api/requirement_quotation/project'.$request->project_id.'_requirement'.$max_req_no.'.pdf';
+		$requirement_quotation = 'project'.$request->project_id.'_requirement'.$max_req_no.'.pdf';
+		$pdf->Output($requirement_quotation_path, 'I');
+		
+		$this->db->where(['cus_project_id' => $request->project_id, 'requirement_no' => $max_req_no])->update('osl_cus_project_requirements', ['quotation_path' => $requirement_quotation]);
+
+		// echo $this->db->last_query();die();
+
+		if($q) {
+			$response['success'] = true;
+			$response['message'] = 'Data Inserted Successfully.';
+			$response['requirement_quotation'] = base_url().'requirement_quotation/'.$requirement_quotation;
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'Error Occurred While Inserting Data.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function store_requirement_copy()
+	{
+		$project_id = $this->input->post('project_id');
+		$parent_category_id = $this->input->post('parent_category_id');
+		$category_id = $this->input->post('category_id');
+		$is_selected = $this->input->post('is_selected');
+		$brand_sheet_id  = $this->input->post('brand_sheet_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($parent_category_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Parent Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($category_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($brand_sheet_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Brand Sheet Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($is_selected)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Yes or No.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$max_req_no = 1;
+		$q = $this->db->select_max('requirement_no')->where('cus_project_id', $project_id)->get('osl_cus_project_requirements');
+		if($q->num_rows() > 0) {
+			$max_req_no = $q->row()->requirement_no + 1;
+		}
+		for ($i=0; $i < count($category_id); $i++) {
+			$q = $this->db->insert('osl_cus_project_requirements', array('cus_project_id' => $project_id, 'category_id' => $category_id[$i], 'is_selected ' => $is_selected[$i], 'brand_sheet_id ' => $brand_sheet_id[$i], 'requirement_no' => $max_req_no, 'created_at' => date('Y-m-d H:i:s')));
+		}
+
+		// Include the main TCPDF library (search for installation path).
+		require_once(APPPATH.'TCPDF/tcpdf.php');
+
+		// create new PDF document
+		$pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+
+		// set document information
+		// $pdf->SetCreator(PDF_CREATOR);
+
+		// set default header data
+		$pdf->SetHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, 'Quotation');
+		// $pdf->setFooterData(array(0,64,0), array(0,64,128));
+
+		// set header and footer fonts
+		$pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
+		// $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
+
+		// set default monospaced font
+		$pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
+
+		// set margins
+		$pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
+		$pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
+		// $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
+
+		// set auto page breaks
+		$pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
+
+		// set image scale factor
+		$pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
+
+		// set some language-dependent strings (optional)
+		if (@file_exists(dirname(__FILE__).'/lang/eng.php')) {
+			require_once(dirname(__FILE__).'/lang/eng.php');
+			$pdf->setLanguageArray($l);
+		}
+
+		// set default font subsetting mode
+		$pdf->setFontSubsetting(true);
+
+		// Set font
+		// dejavusans is a UTF-8 Unicode font, if you only need to
+		// print standard ASCII chars, you can use core fonts like
+		// helvetica or times to reduce file size.
+		// $pdf->SetFont('helvetica', '', 12, '', true);
+
+		// Add a page
+		// This method has several options, check the source code documentation for more information.
+		$pdf->AddPage();
+
+		// Set some content to print
+		$html = '<table border="1" cellpadding="5">';
+		$total = 0;
+
+		for ($i=0; $i < count($parent_category_id); $i++) {
+
+			$parent_category_name = 'No Parent Category';
+			$q = $this->db->select('name')->where('id', $parent_category_id[$i])->get('osl_parent_categories');
+			if($q->num_rows() > 0) {
+				$parent_category_name = $q->row()->name;
+			}
+		
+		    $html .= '<tr>
+		        		<td style="font-size: 16px; font-weight: bold;">' . $parent_category_name . '</td>
+		    		</tr>';
+
+		    for ($j=0; $j < count($category_id); $j++) {
+
+		    	$category_name = 'No Category';
+		    	$q2 = $this->db->select('name')->where('id', $category_id[$j])->get('osl_categories');
+		    	if($q2->num_rows() > 0) {
+					$category_name = $q2->row()->name;
+		    	}
+
+		    	$brand_sheet_name = 'No Brand Sheet';
+		    	$brand_sheet_price = number_format(0, 2);
+				$q3 = $this->db->select('osl_parent_brand_sheets.name, price')->where('osl_parent_brand_sheets.id', $brand_sheet_id[$j])->join('osl_products', 'osl_products.brand_sheet_id = osl_parent_brand_sheets.id', 'left')->get('osl_parent_brand_sheets');
+				if($q3->num_rows() > 0) {
+					$brand_sheet_name = $q3->row()->name;
+					$brand_sheet_price = $q3->row()->price;
+				}
+
+				if($is_selected[$j] == 1) {
+					$selected = 'Yes';
+				} else {
+					$selected = 'No';
+				}
+
+				$total += $brand_sheet_price;
+
+			    $html .= '<tr>
+			    			<td style="font-size: 14px; font-weight: bold;">' . $category_name . '</td>
+			    		</tr>';
+			    $html .= '<tr>
+			        		<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
+			        	</tr>';
+			    $html .= '<tr>
+			        		<td style="font-size: 12px; font-weight: bold;">' . $brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price. '</td>
+			        	</tr>';
+			}
+		}
+
+		$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
+
+		// Print text using writeHTMLCell()
+		$pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
+
+		// Close and output PDF document
+		// This method has several options, check the source code documentation for more information.
+		$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'api/requirement_quotation/project'.$project_id.'_requirement'.$max_req_no.'.pdf';
+		$requirement_quotation = 'project'.$project_id.'_requirement'.$max_req_no.'.pdf';
+		$pdf->Output($requirement_quotation_path, 'F');
+		
+		$this->db->where(['cus_project_id' => $project_id, 'requirement_no' => $max_req_no])->update('osl_cus_project_requirements', ['quotation_path' => $requirement_quotation]);
+
+		// echo $this->db->last_query();die();
+
+		if($q) {
+			$response['success'] = true;
+			$response['message'] = 'Data Inserted Successfully.';
+			$response['requirement_quotation'] = base_url().'requirement_quotation/'.$requirement_quotation;
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'Error Occurred While Inserting Data.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
