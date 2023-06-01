@@ -66,3 +66,5 @@ $route['v1/fetchParentCategories'] = 'services/fetch_parent_categories';
 $route['v1/fetchCategories'] = 'services/fetch_categories';
 $route['v1/fetchProducts'] = 'services/fetch_products';
 $route['v1/storeRequirement'] = 'services/store_requirement';
+$route['v1/fetchProjects'] = 'services/fetch_projects';
+$route['v1/fetchRequirements'] = 'services/fetch_requirements';
