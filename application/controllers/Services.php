@@ -628,37 +628,37 @@ class Services extends CI_Controller {
 		$post_data = file_get_contents("php://input");
     	$request = json_decode($post_data);
 
-    	if(empty($request->project_id)) {
+    	if($request->project_id == '') {
 			$response['success'] = false;
 			$response['message'] = 'Project Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if(empty($request->parent_category[0]->parent_category_id)) {
+		if($request->parent_category[0]->parent_category_id == '') {
 			$response['success'] = false;
 			$response['message'] = 'Parent Category Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if(empty($request->parent_category[0]->category[0]->category_id)) {
+		if($request->parent_category[0]->category[0]->category_id == '') {
 			$response['success'] = false;
 			$response['message'] = 'Category Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if(empty($request->parent_category[0]->category[0]->is_selected_id)) {
+		if($request->parent_category[0]->category[0]->is_selected_id == '') {
 			$response['success'] = false;
 			$response['message'] = 'Please Select Yes or No.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if(empty($request->parent_category[0]->category[0]->brand_sheet_id)) {
+		if($request->parent_category[0]->category[0]->brand_sheet_id == '') {
 			$response['success'] = false;
 			$response['message'] = 'Brand Sheet Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-
+		// die(';;');
 		$max_req_no = 1;
 		$q = $this->db->select_max('requirement_no')->where('cus_project_id', $request->project_id)->get('osl_cus_project_requirements');
 		if($q->num_rows() > 0) {
@@ -830,7 +830,173 @@ class Services extends CI_Controller {
 		}
 	}
 
-	public function fetch_requirements()
+	public function fetch_requirement()
+	{
+		$project_id = $this->input->post('project_id');
+		$requirement_id = $this->input->post('requirement_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($requirement_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Requirement Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->select('osl_cus_project_requirements.parent_category_id, osl_parent_categories.name AS parent_category')->where('osl_cus_project_requirements.cus_project_id', $project_id)->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->group_by('osl_cus_project_requirements.parent_category_id')->get('osl_cus_project_requirements');
+
+		$response = array();
+		if($q->num_rows() > 0) {
+			
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array();
+			$total = 0;
+			foreach($q->result() as $key => $value) {
+				$q2 = $this->db->select('osl_categories.name AS category, osl_parent_brand_sheets.name AS brandsheet, requirement_no, is_freezed, quotation_path, price')->where(['osl_cus_project_requirements.cus_project_id' => $project_id, 'osl_cus_project_requirements.parent_category_id' => $value->parent_category_id, 'requirement_no' => $requirement_id])->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->join('osl_categories', 'osl_categories.id = osl_cus_project_requirements.category_id', 'left')->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_cus_project_requirements.brand_sheet_id', 'left')->join('osl_products', 'osl_products.brand_sheet_id = osl_cus_project_requirements.brand_sheet_id', 'left')->group_by('osl_cus_project_requirements.category_id')->order_by('requirement_no', 'asc')->order_by('osl_cus_project_requirements.category_id', 'asc')->get('osl_cus_project_requirements');
+				unset($value->parent_category_id);
+				$value->values = array();
+				if($q2->num_rows() > 0) {
+					foreach($q2->result() as $key => $val) {
+						if($val->quotation_path) {
+							$val->quotation_path = base_url().'requirement_quotation/'.$val->quotation_path;
+							$value->values = $q2->result();
+						}
+						$total += $val->price;
+					}
+				}
+				array_push($response['response'], $value);
+			}
+			
+			$response['sub_total'] = number_format($total, 2);
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Requirement Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function freeze_requirement()
+	{
+		$project_id = $this->input->post('project_id');
+		$requirement_id = $this->input->post('requirement_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($requirement_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Requirement Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->where(['cus_project_id' => $project_id, 'requirement_no' => $requirement_id])->get('osl_cus_project_requirements');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$q = $this->db->where(['cus_project_id' => $project_id, 'requirement_no' => $requirement_id])->update('osl_cus_project_requirements', array('is_freezed' => 1));
+			if($q) {
+
+				$response['success'] = true;
+				$response['message'] = 'Data Updated Successfully.';
+				// $response['response'] = $data;
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+			} else {
+				$response['success'] = false;
+				$response['message'] = 'Error Occurred While Updating.';
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+			}
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Project or Requirement Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function compare_requirements()
+	{
+		$project_id = $this->input->post('project_id');
+		$requirement_ids = $this->input->post('requirement_ids');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($requirement_ids)) {
+			$response['success'] = false;
+			$response['message'] = 'Requirement Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$explode_requirement_ids = explode(',', $requirement_ids);
+		// print_r($explode_requirement_ids);die;
+		$response = array();
+		$response['response'] = array();
+			$q = $this->db->select('osl_cus_project_requirements.parent_category_id, osl_parent_categories.name AS parent_category')->where('osl_cus_project_requirements.cus_project_id', $project_id)->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->group_by('osl_cus_project_requirements.parent_category_id')->get('osl_cus_project_requirements');
+		if($q->num_rows() > 0) {
+			foreach($q->result() as $key => $value) {
+				$value->values = array();
+				$q2 = $this->db->select('osl_cus_project_requirements.category_id, osl_categories.name AS category')->where(['osl_cus_project_requirements.cus_project_id' => $project_id, 'osl_cus_project_requirements.parent_category_id' => $value->parent_category_id])->join('osl_categories', 'osl_categories.id = osl_cus_project_requirements.category_id', 'left')->group_by('osl_cus_project_requirements.category_id')->order_by('osl_cus_project_requirements.category_id', 'asc')->get('osl_cus_project_requirements');
+				unset($value->parent_category_id);
+				foreach($q2->result() as $val) {
+					$q3 = $this->db->select('requirement_no, osl_parent_brand_sheets.name, price')->where(['osl_cus_project_requirements.cus_project_id' => $project_id, 'osl_cus_project_requirements.category_id' => $val->category_id])->where_in('requirement_no', $explode_requirement_ids)->join(' osl_parent_brand_sheets', ' osl_parent_brand_sheets.id = osl_cus_project_requirements.brand_sheet_id', 'left')->join('osl_products', ' osl_products.brand_sheet_id = osl_cus_project_requirements.brand_sheet_id', 'left')->group_by('requirement_no')->order_by('osl_cus_project_requirements.requirement_no', 'asc')->get('osl_cus_project_requirements');
+					// echo $this->db->last_query();
+					$requirement = $q3->result();
+					// echo "<pre>";print_r($requirement);
+					for ($i=0; $i < count($requirement); $i++) { 
+						$prev = ($i != 0) ? $requirement[$i-1]->name : $requirement[$i]->name;
+						if($requirement[$i]->name == $prev) {
+							$val->is_different = false;
+						} else {
+							$val->is_different = true;
+						}
+					}
+					foreach ($requirement as $key => $va) {
+						if(empty($va->name)) {
+							$va->name = 'NA';
+						}
+						if(empty($va->price)) {
+							$va->price = 'NA';
+						}
+					}
+					$val->requirements = array();
+					$val->requirements = $q3->result();
+					unset($val->category_id);
+				}
+				$value->values = $q2->result();
+				array_push($response['response'], $value);
+			}
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Parent Category Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_project_requirements()
 	{
 		$project_id = $this->input->post('project_id');
 
@@ -841,21 +1007,20 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('osl_parent_categories.name AS parent_category, osl_categories.name AS category, osl_parent_brand_sheets.name AS brandsheet, requirement_no, is_freezed, quotation_path, price')->where('osl_cus_project_requirements.cus_project_id', $project_id)->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->join('osl_categories', 'osl_categories.id = osl_cus_project_requirements.category_id', 'left')->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_cus_project_requirements.brand_sheet_id', 'left')->join('osl_products', 'osl_products.brand_sheet_id = osl_cus_project_requirements.brand_sheet_id', 'left')->get('osl_cus_project_requirements');
+		$q = $this->db->select('requirement_no, is_freezed, quotation_path')->where('osl_cus_project_requirements.cus_project_id', $project_id)->order_by('requirement_no', 'asc')->group_by('requirement_no')->get('osl_cus_project_requirements');
+
 		$response = array();
 		if($q->num_rows() > 0) {
-			$total = 0;
-			foreach ($q->result() as $key => $value) {
-				if($value->quotation_path) {
-					$value->quotation_path = base_url().'requirement_quotation/'.$value->quotation_path;
-				}
-				$total += $value->price;
-			}
 
+			foreach($q->result() as $key => $val) {
+				if($val->quotation_path) {
+					$val->quotation_path = base_url().'requirement_quotation/'.$val->quotation_path;
+				}
+			}
+			
 			$response['success'] = true;
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->result();
-			$response['sub_total'] = number_format($total, 2);
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		} else {
