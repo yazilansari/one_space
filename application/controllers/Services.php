@@ -467,20 +467,37 @@ class Services extends CI_Controller {
 
 	public function fetch_parent_categories()
 	{
-		$q = $this->db->select('id, name')->get('osl_parent_categories');
-		$response = array();
-		if($q->num_rows() > 0) {
+		$project_id = $this->input->post('project_id');
 
-			$response['success'] = true;
-			$response['message'] = 'Fetched Successfully.';
-			$response['response'] = $q->result();
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
-		} else {
+		if(empty($project_id)) {
 			$response['success'] = false;
-			$response['message'] = 'No Parent Category Found.';
+			$response['message'] = 'Project Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
+		}
+
+		$q2 = $this->db->select('room_type_id')->where('id', $project_id)->get('osl_cus_projects');
+		if($q2->num_rows() > 0) {
+			$room_type_id = $q2->row()->room_type_id;
+			if($room_type_id == 1) {
+				$q = $this->db->select('id, name')->where('id !=', 8)->get('osl_parent_categories');
+			} else {
+				$q = $this->db->select('id, name')->get('osl_parent_categories');
+			}
+			$response = array();
+			if($q->num_rows() > 0) {
+
+				$response['success'] = true;
+				$response['message'] = 'Fetched Successfully.';
+				$response['response'] = $q->result();
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+			} else {
+				$response['success'] = false;
+				$response['message'] = 'No Parent Category Found.';
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+			}
 		}
 	}
 
