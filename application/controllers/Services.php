@@ -1226,4 +1226,27 @@ class Services extends CI_Controller {
 	// 		echo json_encode($response);exit();
 	// 	}
 	// }
+	public function testPDF() {
+		// Include the main TCPDF library and TCPDI.
+		require_once(APPPATH.'TCPDF/tcpdf.php');
+		require_once(APPPATH.'TCPDF/FPDI/src/autoload.php');
+		require_once(APPPATH.'TCPDF/testpdf.php');
+
+		// initiate PDF
+		$pdf = new Pdf();
+		// $pdf->SetMargins(PDF_MARGIN_LEFT, 40, PDF_MARGIN_RIGHT);
+		// $pdf->SetAutoPageBreak(true, 40);
+
+		// add a page
+		// $pdf->AddPage();
+
+		// get external file content
+		// $utf8text = file_get_contents(APPPATH.'TCPDF/examples/data/utf8test.txt', true);
+
+		// $pdf->SetFont('freeserif', '', 12);
+		// now write some text above the imported page
+		// $pdf->Write(5, $utf8text);
+
+		$pdf->Output('generated.pdf', 'I');
+	}
 }
