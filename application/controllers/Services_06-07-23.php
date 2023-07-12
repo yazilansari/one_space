@@ -10,7 +10,7 @@ class Services extends CI_Controller {
 		$device_id = $this->input->post('device_id');
 		if(!empty($mobile_no)) {
 			if($is_login) {
-				$q = $this->db->where('phone', $mobile_no)->get('users');
+				$q = $this->db->where('telephone', $mobile_no)->get('os_customer');
 				$response = array();
 				if($q->num_rows() > 0) {
 					$otp = rand(100000, 999999);
@@ -41,7 +41,7 @@ class Services extends CI_Controller {
 		            // echo "<pre>";print_r($decoded_res);die();
 		            if($decoded_res && $decoded_res->status == 'success') {
 
-		            	$this->db->where('phone', $mobile_no)->update('users', array('otp' => $otp));
+		            	$this->db->where('telephone', $mobile_no)->update('os_customer', array('otp' => $otp));
 
 		            	$response['success'] = true;
 						$response['message'] = 'Your OTP has been Sent.';
@@ -61,7 +61,7 @@ class Services extends CI_Controller {
 					echo json_encode($response);exit();
 				}
 			} else {
-				$q = $this->db->insert('signup_otp', array('mobile_number' => $mobile_no, 'device_id' => $device_id));
+				$q = $this->db->insert('os_signup_otp', array('mobile_number' => $mobile_no, 'deviceid' => $device_id));
 				$response = array();
 				if($q) {
 					$otp = rand(100000, 999999);
@@ -92,7 +92,7 @@ class Services extends CI_Controller {
 		            // echo "<pre>";print_r($decoded_res);die();
 		            if($decoded_res && $decoded_res->status == 'success') {
 
-		            	$this->db->where('mobile_number', $mobile_no)->update('signup_otp', array('otp' => $otp));
+		            	$this->db->where('mobile_number', $mobile_no)->update('os_signup_otp', array('otp' => $otp));
 
 		            	$response['success'] = true;
 						$response['message'] = 'Your OTP has been Sent.';
@@ -139,7 +139,7 @@ class Services extends CI_Controller {
 		}
 
 		if($is_login) {
-			$q = $this->db->select('id AS customer_id, first_name AS firstname, last_name AS lastname, email, phone AS telephone')->where(array('phone' => $mobile_no, 'otp' => $otp))->get('users');
+			$q = $this->db->select('customer_id, firstname, lastname, email, telephone')->where(array('telephone' => $mobile_no, 'otp' => $otp))->get('os_customer');
 			$response = array();
 			if($q->num_rows() > 0) {
 
@@ -151,7 +151,7 @@ class Services extends CI_Controller {
 
 				$data = array('customer_id' => $customer_id, 'firstname' => $firstname, 'lastname' => $lastname, 'email' => $email, 'telephone' => $telephone,);
 
-				$this->db->where('phone', $mobile_no)->update('users', array('otp' => 0));
+				$this->db->where('telephone', $mobile_no)->update('os_customer', array('otp' => 0));
 
 				$response['success'] = true;
 				$response['message'] =  'Logged in Successfully.';
@@ -165,11 +165,11 @@ class Services extends CI_Controller {
 				echo json_encode($response);exit();
 			}
 		} else {
-			$q = $this->db->where(array('mobile_number' => $mobile_no, 'otp' => $otp))->get('signup_otp');
+			$q = $this->db->where(array('mobile_number' => $mobile_no, 'otp' => $otp))->get('os_signup_otp');
 			$response = array();
 			if($q->num_rows() > 0) {
 
-				$this->db->where('mobile_number', $mobile_no)->delete('signup_otp');
+				$this->db->where('mobile_number', $mobile_no)->delete('os_signup_otp');
 
 				$response['success'] = true;
 				$response['message'] =  'Verified Successfully.';
@@ -187,7 +187,7 @@ class Services extends CI_Controller {
 
 	public function fetch_cities()
 	{
-		$q = $this->db->select('id, name')->get('cities');
+		$q = $this->db->select('id, city')->where('status', 1)->get('os_signup_location');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -210,15 +210,13 @@ class Services extends CI_Controller {
 		$last_name = $this->input->post('last_name');
 		$email = $this->input->post('email');
 		$mobile_no = $this->input->post('mobile_no');
-		$city_id = $this->input->post('signup_location_id');
+		$signup_location_id = $this->input->post('signup_location_id');
 		$flat_type = $this->input->post('flat_type');
 		// $project_type = $this->input->post('project_type');
 		$referred_from = $this->input->post('referred_from');
 		$device_id = $this->input->post('device_id');
 		$device_type = $this->input->post('device_type');
 		$fcm_token = $this->input->post('fcm_token');
-		$other_reference = $this->input->post('other_reference');
-		$country_code = $this->input->post('country_code');
 
 		if(empty($first_name)) {
 			$response['success'] = false;
@@ -244,36 +242,26 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if(empty($city_id)) {
+		if(empty($signup_location_id)) {
 			$response['success'] = false;
 			$response['message'] = 'Please Select City.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->where('phone', $mobile_no)->get('users');
+		$q = $this->db->where('telephone', $mobile_no)->get('os_customer');
 		$response = array();
 		if($q->num_rows() > 0) {
+
 			$response['success'] = false;
 			$response['message'] = 'Mobile Number Already Exist.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
-		}
-
-		$q2 = $this->db->where('email', $email)->get('users');
-		if($q2->num_rows() > 0) {
-			$response['success'] = false;
-			$response['message'] = 'Email Id Already Exist.';
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
-		}
-		// else {
-			$q = $this->db->insert('users', array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email, 'phone' => $mobile_no, 'city_id' => $city_id, 'device_id' => $device_id, 'device_type' => $device_type, 'fcm_token' => $fcm_token, 'referred_from' => $referred_from, 'other_reference' => $other_reference, 'room_type_id' => $flat_type, 'country_code' => $country_code));
+		} else {
+			$q = $this->db->insert('os_customer', array('firstname' => $first_name, 'lastname' => $last_name, 'email' => $email, 'telephone' => $mobile_no, 'signup_location_id' => $signup_location_id, 'date_added' => date('Y-m-d H:i:s'), 'device_id' => $device_id, 'device_type' => $device_type, 'fcm_token' => $fcm_token, 'referred_from' => $referred_from));
 			if($q) {
 				$customer_id = $this->db->insert_id();
-				$q2 = $this->db->select('id')->where('name', 'Customer')->get('roles');
-				$role_id = $q2->row()->id;
-				$this->db->insert('model_has_roles', array('model_id' => $customer_id, 'model_type' => 'App\Models\User', 'role_id' => $role_id));
+				$this->db->insert('os_st_leads', array('customer_id' => $customer_id, 'flat_type' => $flat_type));
 
 				// $this->verify_mobile_number($mobile_no);
 
@@ -290,27 +278,25 @@ class Services extends CI_Controller {
 				header('Content-Type: application/json; charset=utf-8');
 				echo json_encode($response);exit();
 			}
-		// }
+		}
 	}
 
 	public function fetch_packages()
 	{
-		$city_id = $this->input->post('signup_location_id');
-		if(empty($city_id)) {
+		$signup_location_id = $this->input->post('signup_location_id');
+		if(empty($signup_location_id)) {
 			$response['success'] = false;
 			$response['message'] = 'City Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		$q = $this->db->select('id, name, description, image_path AS image')->where(['is_active' => 1, 'city_id' => $city_id])->get('packages');
+		$q = $this->db->select('id, name, description, image')->where(['status' => 1, 'signup_location_id' => $signup_location_id])->get('osl_packages');
 		$response = array();
 		if($q->num_rows() > 0) {
 
 			foreach ($q->result() as $key => $value) {
 				if($value->image) {
 					$value->image = base_url().'image/packages/'.$value->image;
-				} else {
-					$value->image = '';
 				}
 			}
 
@@ -329,7 +315,14 @@ class Services extends CI_Controller {
 
 	public function fetch_partner_projects()
 	{
-		$q = $this->db->select('id, name')->get('project_partners');
+		$q = $this->db->select('sbad.simple_blog_article_description_id, sbad.simple_blog_article_id, sbad.article_title')
+					->from('os_simple_blog_article sba')
+					->join('os_simple_blog_article_description sbad', 'sba.simple_blog_article_id = sbad.simple_blog_article_id', 'left')
+					->join('os_simple_blog_article_to_store sbas', 'sba.simple_blog_article_id = sbas.simple_blog_article_id', 'left')
+					->join('os_simple_blog_author sbau', 'sba.simple_blog_author_id = sbau.simple_blog_author_id', 'left')
+					->join('os_simple_blog_article_to_category sbac', 'sba.simple_blog_article_id = sbac.simple_blog_article_id', 'left')
+					->where(['sbac.simple_blog_category_id' => 5, 'sba.status' => 1, 'sbau.status' => 1, 'sbas.store_id' => 0, 'language_id' => 1])
+					->get();
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -348,15 +341,13 @@ class Services extends CI_Controller {
 
 	public function fetch_brand_sheets()
 	{
-		$q = $this->db->select('id, name, image_path AS image')->get('brandsheets');
+		$q = $this->db->select('id, name, image, description')->where('status', 1)->get('osl_parent_brand_sheets');
 		$response = array();
 		if($q->num_rows() > 0) {
 
 			foreach ($q->result() as $key => $value) {
 				if($value->image) {
 					$value->image = base_url().'image/brand_sheets/'.$value->image;
-				} else {
-					$value->image = '';
 				}
 			}
 
@@ -375,7 +366,7 @@ class Services extends CI_Controller {
 
 	public function fetch_room_types()
 	{
-		$q = $this->db->select('id, name')->where('is_active', 1)->get('room_types');
+		$q = $this->db->select('id, room_type')->where('status', 1)->get('osl_room_types');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -405,7 +396,6 @@ class Services extends CI_Controller {
 		$project_start_from = $this->input->post('project_start_from');
 		$budget = $this->input->post('budget');
 		$total_area = $this->input->post('total_area');
-		$theme_id = $this->input->post('theme_id');
 
 		if(empty($user_id)) {
 			$response['success'] = false;
@@ -474,7 +464,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'created_at' => date('Y-m-d H:i:s')));
+		$q = $this->db->insert('osl_cus_projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brand_sheet_id ' => $brandsheet, 'property_type' => $property_type, 'partner_project_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'project_start_from' => $project_start_from, 'budget' => $budget, 'total_area' => $total_area, 'created_at' => date('Y-m-d H:i:s')));
 		if($q) {
 			$response['success'] = true;
 			$response['message'] = 'Data Inserted Successfully.';
@@ -500,13 +490,13 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q2 = $this->db->select('room_type_id')->where('id', $project_id)->get('projects');
+		$q2 = $this->db->select('room_type_id')->where('id', $project_id)->get('osl_cus_projects');
 		if($q2->num_rows() > 0) {
 			$room_type_id = $q2->row()->room_type_id;
-			if($room_type_id == 4) {
-				$q = $this->db->select('id, name')->where('id !=', 6)->get('parent_categories');
+			if($room_type_id == 1) {
+				$q = $this->db->select('id, name')->where('id !=', 8)->get('osl_parent_categories');
 			} else {
-				$q = $this->db->select('id, name')->get('parent_categories');
+				$q = $this->db->select('id, name')->get('osl_parent_categories');
 			}
 			$response = array();
 			if($q->num_rows() > 0) {
@@ -522,31 +512,6 @@ class Services extends CI_Controller {
 				header('Content-Type: application/json; charset=utf-8');
 				echo json_encode($response);exit();
 			}
-		} else {
-			$response['success'] = false;
-			$response['message'] = 'No Project Found.';
-			$response['response'] = [];
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
-		}
-	}
-
-	public function fetch_themes()
-	{
-		$q = $this->db->select('id, name')->get('themes');
-		$response = array();
-		if($q->num_rows() > 0) {
-
-			$response['success'] = true;
-			$response['message'] = 'Fetched Successfully.';
-			$response['response'] = $q->result();
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
-		} else {
-			$response['success'] = false;
-			$response['message'] = 'No Theme Found.';
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
 		}
 	}
 
@@ -575,11 +540,11 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q3 = $this->db->select('package_id, brandsheet_id')->where(['user_id' => $user_id, 'id' => $project_id])->get('projects');
+		$q3 = $this->db->select('package_id, brand_sheet_id')->where(['user_id' => $user_id, 'id' => $project_id])->get('osl_cus_projects');
 		if($q3->num_rows() > 0) {
 			$package_id = $q3->row()->package_id;
-			$brand_sheet_id = $q3->row()->brandsheet_id;
-			$q4 = $this->db->select('skus.category_id AS category_id')->where('package_id', $package_id)->join('skus', 'skus.id = sku_packages.sku_id', 'left')->get('sku_packages');
+			$brand_sheet_id = $q3->row()->brand_sheet_id;
+			$q4 = $this->db->select('category_id')->where('package_id', $package_id)->get('osl_categories_packages');
 			if($q4->num_rows() > 0) {
 				$category_id = [];
 				foreach($q4->result() as $valu) {
@@ -597,7 +562,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 		// die();
-		$q = $this->db->select('id, name')->where('id', $parent_category_id)->get('parent_categories');
+		$q = $this->db->select('id, name')->where('id', $parent_category_id)->get('osl_parent_categories');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -606,75 +571,33 @@ class Services extends CI_Controller {
 			foreach ($q->result() as $key => $value) {
 				$value->categories = array();
 				$response['response'] = $value;
-				$q2 = $this->db->select('id, name, image_path AS image, has_subcategories AS isSubCategoryEnabled')->where('parent_category_id', $parent_category_id)->get('categories');
+				$q2 = $this->db->select('id, name, image')->where(['parent_category_id' => $parent_category_id, 'status' => 1])->get('osl_categories');
 				if($q2->num_rows() > 0) {
 					foreach ($q2->result() as $key => $val) {
-						$isSubCategoryEnabled = ($val->isSubCategoryEnabled == '1') ? true : false;
-						if($val->image) {
-							$val->image = base_url().'image/categories/'.$val->image;
-						} else {
-							$val->image = '';
-						}
-						if(!$val->isSubCategoryEnabled) {
-							unset($val->isSubCategoryEnabled);
-							$q5 = $this->db->select('brandsheets.id AS brand_sheet_id, brandsheets.name AS name')->where('category_id', $val->id)->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-							if($q5->num_rows() > 0) {
-								$brand_sheet_id_arr = [];
-								foreach ($q5->result() as $key => $v) {
-									$q6 = $this->db->select('price')->where(['category_id' => $val->id, 'brandsheet_id' => $v->brand_sheet_id])->get('skus');
-									if($q6->num_rows() > 0) {
-										$price = $q6->row()->price;
-									} else {
-										$price = 0.00;
-									}
+						$q5 = $this->db->select('brand_sheet_id, name')->where('category_id', $val->id)->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_brand_sheets_categories.brand_sheet_id', 'left')->get('osl_brand_sheets_categories');
+						if($q5->num_rows() > 0) {
+							$brand_sheet_id_arr = [];
+							foreach ($q5->result() as $key => $v) {
+								$q6 = $this->db->select('price')->where(['category_id' => $val->id, 'brand_sheet_id' => $v->brand_sheet_id])->get('osl_products');
+								if($q6->num_rows() > 0) {
+									$price = $q6->row()->price;
+								} else {
+									$price = 0.00;
+								}
 
-									if($brand_sheet_id == $v->brand_sheet_id) {
-										// unset($v->brand_sheet_id);
-										$v->price = $price;
-										$v->isSelected = true;
-									} else {
-										// unset($v->brand_sheet_id);
-										$v->price = $price;
-										$v->isSelected = false;
-									}
+								if($brand_sheet_id == $v->brand_sheet_id) {
+									// unset($v->brand_sheet_id);
+									$v->price = $price;
+									$v->isSelected = true;
+								} else {
+									// unset($v->brand_sheet_id);
+									$v->price = $price;
+									$v->isSelected = false;
 								}
 							}
-							$val->options = array(array("name" => "Yes", "isSelected" => in_array($val->id, $category_id) ? true : false, 'isSubCategoryEnabled' => $isSubCategoryEnabled, 'innerOptions' => $q5->result()), array("name" => "No", "isSelected" => !in_array($val->id, $category_id) ? true : false, 'innerOptions' => array()));
-							array_push($value->categories, $val);
-						} else {
-							unset($val->isSubCategoryEnabled);
-							$q7 = $this->db->select('id, name')->where('category_id', $val->id)->get('sub_categories');
-							if($q7->num_rows() > 0) {
-								foreach ($q7->result() as $key => $sub_category) {
-									$sub_category->innerOptions = array();
-									$q5 = $this->db->select('brandsheets.id AS brand_sheet_id, brandsheets.name AS name')->where(['category_id' => $val->id, 'sub_category_id' => $sub_category->id])->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-									if($q5->num_rows() > 0) {
-										$brand_sheet_id_arr = [];
-										foreach ($q5->result() as $key => $v) {
-											$q6 = $this->db->select('price')->where(['category_id' => $val->id, 'sub_category_id' => $sub_category->id, 'brandsheet_id' => $v->brand_sheet_id])->get('skus');
-											if($q6->num_rows() > 0) {
-												$price = $q6->row()->price;
-											} else {
-												$price = 0.00;
-											}
-
-											if($brand_sheet_id == $v->brand_sheet_id) {
-												// unset($v->brand_sheet_id);
-												$v->price = $price;
-												$v->isSelected = true;
-											} else {
-												// unset($v->brand_sheet_id);
-												$v->price = $price;
-												$v->isSelected = false;
-											}
-										}
-									}
-									$sub_category->innerOptions = $q5->result();
-								}
-							}
-							$val->options = array(array("name" => "Yes", "isSelected" => in_array($val->id, $category_id) ? true : false, 'isSubCategoryEnabled' => $isSubCategoryEnabled, 'subCategories' => $q7->result()), array("name" => "No", "isSelected" => !in_array($val->id, $category_id) ? true : false, 'innerOptions' => array()));
-							array_push($value->categories, $val);
 						}
+						$val->options = array(array("name" => "Yes", "isSelected" => in_array($val->id, $category_id) ? true : false, 'innerOptions' => $q5->result()), array("name" => "No", "isSelected" => !in_array($val->id, $category_id) ? true : false, 'innerOptions' => array()));
+						array_push($value->categories, $val);
 					}
 					header('Content-Type: application/json; charset=utf-8');
 					echo json_encode($response);exit();
@@ -705,8 +628,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('brandsheets.id, brandsheets.name AS name')->where('category_id', $category_id)->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-
+		$q = $this->db->select('osl_parent_brand_sheets.id, name')->where('category_id', $category_id)->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_brand_sheets_categories.brand_sheet_id', 'left')->get('osl_brand_sheets_categories');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -714,17 +636,10 @@ class Services extends CI_Controller {
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = array();
 			foreach($q->result() as $key => $value) {
-				$q2 = $this->db->select('name, image_path AS image')->where('brandsheet_id', $value->id)->get('skus');
+				$q2 = $this->db->select('name, image')->where('brand_sheet_id', $value->id)->get('osl_products');
 				unset($value->id);
 				$value->products = array();
 				if($q2->num_rows() > 0) {
-					foreach ($q2->result() as $key => $val) {
-						if($val->image) {
-							$val->image = base_url().'image/skus/'.$val->image;
-						} else {
-							$val->image = '';
-						}
-					}
 					$value->products = $q2->result();
 				}
 				array_push($response['response'], $value);
@@ -750,62 +665,40 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if($request->user_id == '') {
+		if($request->parent_category[0]->parent_category_id == '') {
 			$response['success'] = false;
-			$response['message'] = 'User Id is Missing.';
+			$response['message'] = 'Parent Category Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if($request->theme_id == '') {
+		if($request->parent_category[0]->category[0]->category_id == '') {
 			$response['success'] = false;
-			$response['message'] = 'Theme Id is Missing.';
+			$response['message'] = 'Category Id is Missing.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		// if($request->parent_category[0]->parent_category_id == '') {
-		// 	$response['success'] = false;
-		// 	$response['message'] = 'Parent Category Id is Missing.';
-		// 	header('Content-Type: application/json; charset=utf-8');
-		// 	echo json_encode($response);exit();
-		// }
-		// if($request->parent_category[0]->category[0]->category_id == '') {
-		// 	$response['success'] = false;
-		// 	$response['message'] = 'Category Id is Missing.';
-		// 	header('Content-Type: application/json; charset=utf-8');
-		// 	echo json_encode($response);exit();
-		// }
-		// if($request->parent_category[0]->category[0]->is_selected_id == '') {
-		// 	$response['success'] = false;
-		// 	$response['message'] = 'Please Select Yes or No.';
-		// 	header('Content-Type: application/json; charset=utf-8');
-		// 	echo json_encode($response);exit();
-		// }
-		// if($request->parent_category[0]->category[0]->brand_sheet_id == '') {
-		// 	$response['success'] = false;
-		// 	$response['message'] = 'Brand Sheet Id is Missing.';
-		// 	header('Content-Type: application/json; charset=utf-8');
-		// 	echo json_encode($response);exit();
-		// }
+		if($request->parent_category[0]->category[0]->is_selected_id == '') {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Yes or No.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if($request->parent_category[0]->category[0]->brand_sheet_id == '') {
+			$response['success'] = false;
+			$response['message'] = 'Brand Sheet Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
 		// die(';;');
-		// $max_req_no = 1;
-		// $q = $this->db->select_max('requirement_no')->where('cus_project_id', $request->project_id)->get('osl_cus_project_requirements');
-		// if($q->num_rows() > 0) {
-		// 	$max_req_no = $q->row()->requirement_no + 1;
-		// }
-		$q2 = $this->db->insert('requirements', array('user_id' => $request->user_id, 'project_id' => $request->project_id, 'theme_id' => $request->theme_id));
-		if($q2) {
-			$requirement_id = $this->db->insert_id();
-			for ($i=0; $i < count($request->categories); $i++) {
-				// for($j=0; $j < count($request->categories[$i]->category); $j++) {
-					// echo "<pre>";print_r($request->parent_category[$i]->category[$j]);
-					if($request->categories[$i]->has_subcategory == '0') {
-						$q = $this->db->insert('requirement_skus', array('category_id' => $request->categories[$i]->category_id, 'is_selected ' => $request->categories[$i]->is_selected_id, 'sku_id ' => $request->categories[$i]->brand_sheet_id, 'requirement_id' => $requirement_id, 'created_at' => date('Y-m-d H:i:s')));
-					} else {
-						for($k=0; $k < count($request->categories[$i]->sub_categories); $k++) {
-							$q = $this->db->insert('requirement_skus', array('category_id' => $request->categories[$i]->category_id, 'sub_category_id' => $request->categories[$i]->sub_categories[$k]->sub_category_id, 'is_selected ' => $request->categories[$i]->sub_categories[$k]->is_selected_id, 'sku_id ' => $request->categories[$i]->sub_categories[$k]->brand_sheet_id, 'requirement_id' => $requirement_id, 'created_at' => date('Y-m-d H:i:s')));
-						}
-					}
-				// }
+		$max_req_no = 1;
+		$q = $this->db->select_max('requirement_no')->where('cus_project_id', $request->project_id)->get('osl_cus_project_requirements');
+		if($q->num_rows() > 0) {
+			$max_req_no = $q->row()->requirement_no + 1;
+		}
+		for ($i=0; $i < count($request->parent_category); $i++) {
+			for($j=0; $j < count($request->parent_category[$i]->category); $j++) {
+				// echo "<pre>";print_r($request->parent_category[$i]->category[$j]);
+				$q = $this->db->insert('osl_cus_project_requirements', array('cus_project_id' => $request->project_id, 'parent_category_id' => $request->parent_category[$i]->parent_category_id, 'category_id' => $request->parent_category[$i]->category[$j]->category_id, 'is_selected ' => $request->parent_category[$i]->category[$j]->is_selected_id, 'brand_sheet_id ' => $request->parent_category[$i]->category[$j]->brand_sheet_id, 'requirement_no' => $max_req_no, 'created_at' => date('Y-m-d H:i:s')));
 			}
 		}
 		// die();
@@ -863,117 +756,66 @@ class Services extends CI_Controller {
 		$html = '<table border="1" cellpadding="5">';
 		$total = 0;
 
-		// for ($i=0; $i < count($request->parent_category); $i++) {
+		for ($i=0; $i < count($request->parent_category); $i++) {
 
-			// $parent_category_name = 'No Parent Category';
-			// $q = $this->db->select('name')->where('id', $request->parent_category[$i]->parent_category_id)->get('osl_parent_categories');
-			// if($q->num_rows() > 0) {
-			// 	$parent_category_name = $q->row()->name;
-			// }
+			$parent_category_name = 'No Parent Category';
+			$q = $this->db->select('name')->where('id', $request->parent_category[$i]->parent_category_id)->get('osl_parent_categories');
+			if($q->num_rows() > 0) {
+				$parent_category_name = $q->row()->name;
+			}
 		
-		    // $html .= '<tr>
-		    //     		<td style="font-size: 16px; font-weight: bold;">' . $parent_category_name . '</td>
-		    // 		</tr>';
+		    $html .= '<tr>
+		        		<td style="font-size: 16px; font-weight: bold;">' . $parent_category_name . '</td>
+		    		</tr>';
 
-		    for ($i=0; $i < count($request->categories); $i++) {
+		    for ($j=0; $j < count($request->parent_category[$i]->category); $j++) {
 
 		    	$category_name = 'No Category';
-		    	$q2 = $this->db->select('name')->where('id', $request->categories[$i]->category_id)->get('categories');
+		    	$q2 = $this->db->select('name')->where('id', $request->parent_category[$i]->category[$j]->category_id)->get('osl_categories');
 		    	if($q2->num_rows() > 0) {
 					$category_name = $q2->row()->name;
 		    	}
-		    	$html .= '<tr>
-			    			<td style="font-size: 14px; font-weight: bold;">' . $category_name . '</td>
-			    </tr>';
 
 		    	$brand_sheet_name = 'No Brand Sheet';
 		    	$brand_sheet_price = number_format(0, 2);
-
-		    	if($request->categories[$i]->has_subcategory == '0') {
-					$no_sub_category_name = 'No Sub Category';
-					if($request->categories[$i]->is_selected_id == "1") {
-						$selected = 'Yes';
-					} else {
-						$selected = 'No';
-					}
-					$q3 = $this->db->select('brandsheets.name, price')->where('skus.id', $request->categories[$i]->brand_sheet_id)->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-					if($q3->num_rows() > 0) {
-						$brand_sheet_name = $q3->row()->name;
-						$brand_sheet_price = $q3->row()->price;
-						$html .= '<tr>
-			    				<td style="font-size: 14px; font-weight: bold;">' . $no_sub_category_name . '</td>
-			    			</tr>
-			    			<tr>
-			        			<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
-			        		</tr>
-			    			<tr>
-			        			<td style="font-size: 12px; font-weight: bold;">' . $brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price . '</td>
-			        		</tr>';
-					}
-					$total += $brand_sheet_price;
-				} else {
-				    	$q5 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet_name, price')->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->where('sub_categories.category_id', $request->categories[$i]->category_id)->get('sub_categories');
-						// echo $this->db->last_query();		    	
-				    	if($q5->num_rows() > 0) {
-				    		// foreach ($q5->result() as $key => $value) {
-								for($k=0; $k < count($request->categories[$i]->sub_categories); $k++) {
-									if($request->categories[$i]->sub_categories[$k]->is_selected_id == "1") {
-										// echo "1";
-										// echo "<br>";
-										$selected_sub[] = 'Yes';
-										// $value->selected_sub = $selected_sub;
-									} else {
-										// echo "0";
-										// echo "<br>";
-										$selected_sub[] = 'No';
-										// $value->selected_sub = $selected_sub;
-									}
-								}
-				    		// }
-				    		$result = $q5->result_array();
-				    		// echo "<pre>";print_r($selected_sub);
-				    		for($l=0; $l < count($result); $l++) {
-								$sub_category_name = $result[$l]['sub_category_name'];
-								$html .= '<tr>
-						    					<td style="font-size: 14px; font-weight: bold;">' . $sub_category_name . '</td>
-						    				</tr>';
-								// $q4 = $this->db->select('brandsheets.name, price')->where(['skus.id' => $request->categories[$i]->sub_categories[$k]->brand_sheet_id, 'sub_category_id' => $value->id])->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-								// echo $this->db->last_query();
-								// if($q4->num_rows() > 0) {
-									$brand_sheet_name_sub = $result[$l]['brandsheet_name'];
-									$brand_sheet_price_sub = $result[$l]['price'];
-									// if($request->categories[$i]->sub_categories[$k]->is_selected_id == "1") {
-									// 	$selected_sub = 'Yes';
-									// } else {
-									// 	$selected_sub = 'No';
-									// }
-									$html .='<tr>
-					        					<td style="font-size: 12px; font-weight: bold;">' . $selected_sub[$l] . '</td>
-					        				</tr>
-					        				<tr>
-					        					<td style="font-size: 12px; font-weight: bold;">' .  $brand_sheet_name_sub . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price_sub . '</td>
-					        				</tr>';
-						        	$total += $brand_sheet_price_sub;
-								// }
-				    		}
-				    	}
-					}
+				$q3 = $this->db->select('osl_parent_brand_sheets.name, price')->where('osl_parent_brand_sheets.id', $request->parent_category[$i]->category[$j]->brand_sheet_id)->join('osl_products', 'osl_products.brand_sheet_id = osl_parent_brand_sheets.id', 'left')->get('osl_parent_brand_sheets');
+				if($q3->num_rows() > 0) {
+					$brand_sheet_name = $q3->row()->name;
+					$brand_sheet_price = $q3->row()->price;
 				}
-		// }
+
+				if($request->parent_category[$i]->category[$j]->is_selected_id == 1) {
+					$selected = 'Yes';
+				} else {
+					$selected = 'No';
+				}
+
+				$total += $brand_sheet_price;
+
+			    $html .= '<tr>
+			    			<td style="font-size: 14px; font-weight: bold;">' . $category_name . '</td>
+			    		</tr>';
+			    $html .= '<tr>
+			        		<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
+			        	</tr>';
+			    $html .= '<tr>
+			        		<td style="font-size: 12px; font-weight: bold;">' . $brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price. '</td>
+			        	</tr>';
+			}
+		}
 
 		$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
 
 		// Print text using writeHTMLCell()
 		$pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
-		// $requirement_id = 1;
+
 		// Close and output PDF document
 		// This method has several options, check the source code documentation for more information.
-		$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'api/requirement_quotation/project'.$request->project_id.'_requirement'.$requirement_id.'.pdf';
-		$requirement_quotation = 'project'.$request->project_id.'_requirement'.$requirement_id.'.pdf';
+		$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'api/requirement_quotation/project'.$request->project_id.'_requirement'.$max_req_no.'.pdf';
+		$requirement_quotation = 'project'.$request->project_id.'_requirement'.$max_req_no.'.pdf';
 		$pdf->Output($requirement_quotation_path, 'F');
-		// die;
 		
-		$this->db->where(['project_id' => $request->project_id, 'id' => $requirement_id])->update('requirements', ['quotation_path' => $requirement_quotation]);
+		$this->db->where(['cus_project_id' => $request->project_id, 'requirement_no' => $max_req_no])->update('osl_cus_project_requirements', ['quotation_path' => $requirement_quotation]);
 
 		// echo $this->db->last_query();die();
 
@@ -1002,7 +844,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('projects.id, projects.name AS project_name, CONCAT(first_name, " ", last_name) AS username, cities.name AS city, room_types.name AS room_type')->where('projects.user_id', $user_id)->join('users', 'users.id = projects.user_id', 'left')->join('cities', 'cities.id = users.city_id', 'left')->join('room_types', 'room_types.id = projects.room_type_id', 'left')->get('projects');
+		$q = $this->db->select('osl_cus_projects.id, name AS project_name, CONCAT(firstname, " ", lastname) AS username, city, room_type')->where('osl_cus_projects.user_id', $user_id)->join('os_customer', 'os_customer.customer_id = osl_cus_projects.user_id', 'left')->join('os_signup_location', 'os_signup_location.id = os_customer.signup_location_id', 'left')->join('osl_room_types', 'osl_room_types.id = osl_cus_projects.room_type_id', 'left')->get('osl_cus_projects');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -1092,11 +934,11 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->where(['project_id' => $project_id, 'id' => $requirement_id])->get('requirements');
+		$q = $this->db->where(['cus_project_id' => $project_id, 'requirement_no' => $requirement_id])->get('osl_cus_project_requirements');
 		$response = array();
 		if($q->num_rows() > 0) {
 
-			$q = $this->db->where(['project_id' => $project_id, 'id' => $requirement_id])->update('requirements', array('is_freezed' => 1));
+			$q = $this->db->where(['cus_project_id' => $project_id, 'requirement_no' => $requirement_id])->update('osl_cus_project_requirements', array('is_freezed' => 1));
 			if($q) {
 
 				$response['success'] = true;
