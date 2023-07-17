@@ -792,17 +792,25 @@ class Services extends CI_Controller {
 		// if($q->num_rows() > 0) {
 		// 	$max_req_no = $q->row()->requirement_no + 1;
 		// }
-		$q2 = $this->db->insert('requirements', array('user_id' => $request->user_id, 'project_id' => $request->project_id, 'theme_id' => $request->theme_id));
+		$q2 = $this->db->insert('requirements', array('user_id' => $request->user_id, 'project_id' => $request->project_id, 'theme_id' => $request->theme_id, 'created_at' => date('Y-m-d H:i:s')));
 		if($q2) {
 			$requirement_id = $this->db->insert_id();
 			for ($i=0; $i < count($request->categories); $i++) {
 				// for($j=0; $j < count($request->categories[$i]->category); $j++) {
 					// echo "<pre>";print_r($request->parent_category[$i]->category[$j]);
 					if($request->categories[$i]->has_subcategory == '0') {
-						$q = $this->db->insert('requirement_skus', array('category_id' => $request->categories[$i]->category_id, 'is_selected ' => $request->categories[$i]->is_selected_id, 'sku_id ' => $request->categories[$i]->brand_sheet_id, 'requirement_id' => $requirement_id, 'created_at' => date('Y-m-d H:i:s')));
+						$q3 = $this->db->select('id')->where(['skus.brandsheet_id' => $request->categories[$i]->brand_sheet_id, 'skus.category_id' => $request->categories[$i]->category_id])->get('skus');
+						if($q3->num_rows() > 0) {
+							$sku_id = $q3->row()->id;
+						}
+						$q = $this->db->insert('requirement_skus', array('category_id' => $request->categories[$i]->category_id, 'is_selected ' => $request->categories[$i]->is_selected_id, 'sku_id ' => $sku_id, 'requirement_id' => $requirement_id, 'created_at' => date('Y-m-d H:i:s')));
 					} else {
 						for($k=0; $k < count($request->categories[$i]->sub_categories); $k++) {
-							$q = $this->db->insert('requirement_skus', array('category_id' => $request->categories[$i]->category_id, 'sub_category_id' => $request->categories[$i]->sub_categories[$k]->sub_category_id, 'is_selected ' => $request->categories[$i]->sub_categories[$k]->is_selected_id, 'sku_id ' => $request->categories[$i]->sub_categories[$k]->brand_sheet_id, 'requirement_id' => $requirement_id, 'created_at' => date('Y-m-d H:i:s')));
+							$q3 = $this->db->select('id')->where(['skus.brandsheet_id' => $request->categories[$i]->sub_categories[$k]->brand_sheet_id, 'skus.category_id' => $request->categories[$i]->category_id, 'skus.sub_category_id' => $request->categories[$i]->sub_categories[$k]->sub_category_id])->get('skus');
+							if($q3->num_rows() > 0) {
+								$sku_id = $q3->row()->id;
+							}
+							$q = $this->db->insert('requirement_skus', array('category_id' => $request->categories[$i]->category_id, 'sub_category_id' => $request->categories[$i]->sub_categories[$k]->sub_category_id, 'is_selected ' => $request->categories[$i]->sub_categories[$k]->is_selected_id, 'sku_id ' => $sku_id, 'requirement_id' => $requirement_id, 'created_at' => date('Y-m-d H:i:s')));
 						}
 					}
 				// }
@@ -863,124 +871,53 @@ class Services extends CI_Controller {
 		$html = '<table border="1" cellpadding="5">';
 		$total = 0;
 
-		// for ($i=0; $i < count($request->parent_category); $i++) {
-
-			// $parent_category_name = 'No Parent Category';
-			// $q = $this->db->select('name')->where('id', $request->parent_category[$i]->parent_category_id)->get('osl_parent_categories');
-			// if($q->num_rows() > 0) {
-			// 	$parent_category_name = $q->row()->name;
-			// }
-		
-		    // $html .= '<tr>
-		    //     		<td style="font-size: 16px; font-weight: bold;">' . $parent_category_name . '</td>
-		    // 		</tr>';
-
-		    for ($i=0; $i < count($request->categories); $i++) {
-
-		    	$category_name = 'No Category';
-		    	$q2 = $this->db->select('name')->where('id', $request->categories[$i]->category_id)->get('categories');
-		    	if($q2->num_rows() > 0) {
-					$category_name = $q2->row()->name;
-		    	}
-		    	$html .= '<tr>
-			    			<td style="font-size: 14px; font-weight: bold;">' . $category_name . '</td>
-			    </tr>';
-
-		    	$brand_sheet_name = 'No Brand Sheet';
-		    	$brand_sheet_price = number_format(0, 2);
-
-		    	if($request->categories[$i]->has_subcategory == '0') {
-					$no_sub_category_name = 'No Sub Category';
-					if($request->categories[$i]->is_selected_id == "1") {
+		$q4 = $this->db->select('categories.name AS category_name, sub_categories.name AS sub_category_name, brandsheets.name AS brand_sheet_name, requirement_skus.is_selected, price')->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('sub_categories', 'sub_categories.id = requirement_skus.sub_category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->where('requirement_skus.requirement_id', $requirement_id)->order_by('categories.id', 'asc')->get('requirement_skus');
+			// echo $this->db->last_query();die();
+			if($q4->num_rows() > 0) {
+				foreach ($q4->result() as $key => $value) {
+					$html .= '<tr>
+			    				<td style="font-size: 14px; font-weight: bold;">' . $value->category_name . '</td>
+			    			</tr>';
+			    	if($value->is_selected == "1") {
 						$selected = 'Yes';
 					} else {
 						$selected = 'No';
 					}
-					$q3 = $this->db->select('brandsheets.name, price')->where('skus.id', $request->categories[$i]->brand_sheet_id)->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-					if($q3->num_rows() > 0) {
-						$brand_sheet_name = $q3->row()->name;
-						$brand_sheet_price = $q3->row()->price;
-						$html .= '<tr>
-			    				<td style="font-size: 14px; font-weight: bold;">' . $no_sub_category_name . '</td>
+					$html .= '<tr>
+			    				<td style="font-size: 14px; font-weight: bold;">' . $value->sub_category_name . '</td>
 			    			</tr>
 			    			<tr>
 			        			<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
 			        		</tr>
 			    			<tr>
-			        			<td style="font-size: 12px; font-weight: bold;">' . $brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price . '</td>
+			        			<td style="font-size: 12px; font-weight: bold;">' . $value->brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $value->price . '</td>
 			        		</tr>';
-					}
-					$total += $brand_sheet_price;
-				} else {
-				    	$q5 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet_name, price')->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->where('sub_categories.category_id', $request->categories[$i]->category_id)->get('sub_categories');
-						// echo $this->db->last_query();		    	
-				    	if($q5->num_rows() > 0) {
-				    		// foreach ($q5->result() as $key => $value) {
-								for($k=0; $k < count($request->categories[$i]->sub_categories); $k++) {
-									if($request->categories[$i]->sub_categories[$k]->is_selected_id == "1") {
-										// echo "1";
-										// echo "<br>";
-										$selected_sub[] = 'Yes';
-										// $value->selected_sub = $selected_sub;
-									} else {
-										// echo "0";
-										// echo "<br>";
-										$selected_sub[] = 'No';
-										// $value->selected_sub = $selected_sub;
-									}
-								}
-				    		// }
-				    		$result = $q5->result_array();
-				    		// echo "<pre>";print_r($selected_sub);
-				    		for($l=0; $l < count($result); $l++) {
-								$sub_category_name = $result[$l]['sub_category_name'];
-								$html .= '<tr>
-						    					<td style="font-size: 14px; font-weight: bold;">' . $sub_category_name . '</td>
-						    				</tr>';
-								// $q4 = $this->db->select('brandsheets.name, price')->where(['skus.id' => $request->categories[$i]->sub_categories[$k]->brand_sheet_id, 'sub_category_id' => $value->id])->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->get('skus');
-								// echo $this->db->last_query();
-								// if($q4->num_rows() > 0) {
-									$brand_sheet_name_sub = $result[$l]['brandsheet_name'];
-									$brand_sheet_price_sub = $result[$l]['price'];
-									// if($request->categories[$i]->sub_categories[$k]->is_selected_id == "1") {
-									// 	$selected_sub = 'Yes';
-									// } else {
-									// 	$selected_sub = 'No';
-									// }
-									$html .='<tr>
-					        					<td style="font-size: 12px; font-weight: bold;">' . $selected_sub[$l] . '</td>
-					        				</tr>
-					        				<tr>
-					        					<td style="font-size: 12px; font-weight: bold;">' .  $brand_sheet_name_sub . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price_sub . '</td>
-					        				</tr>';
-						        	$total += $brand_sheet_price_sub;
-								// }
-				    		}
-				    	}
-					}
+			        $total += $value->price;
 				}
-		// }
-
-		$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
+				$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
+			}
 
 		// Print text using writeHTMLCell()
 		$pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
 		// $requirement_id = 1;
 		// Close and output PDF document
 		// This method has several options, check the source code documentation for more information.
-		$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'api/requirement_quotation/project'.$request->project_id.'_requirement'.$requirement_id.'.pdf';
-		$requirement_quotation = 'project'.$request->project_id.'_requirement'.$requirement_id.'.pdf';
+		if(!file_exists($_SERVER['DOCUMENT_ROOT'].'customer/projects/'.$request->project_id)) {
+			mkdir($_SERVER['DOCUMENT_ROOT'].'customer/projects/'.$request->project_id);
+		}
+		$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'customer/projects/'.$request->project_id.'/requirement-'.$requirement_id.'.pdf';
+		$requirement_quotation = 'customer/projects/'.$request->project_id.'/requirement-'.$requirement_id.'.pdf';
 		$pdf->Output($requirement_quotation_path, 'F');
 		// die;
 		
-		$this->db->where(['project_id' => $request->project_id, 'id' => $requirement_id])->update('requirements', ['quotation_path' => $requirement_quotation]);
+		$this->db->where(['project_id' => $request->project_id, 'id' => $requirement_id])->update('requirements', ['quotation_path' => $requirement_quotation, 'quotation_price' => $total, 'updated_at' => date('Y-m-d H:i:s')]);
 
 		// echo $this->db->last_query();die();
 
 		if($q) {
 			$response['success'] = true;
 			$response['message'] = 'Data Inserted Successfully.';
-			$response['requirement_quotation'] = base_url().'requirement_quotation/'.$requirement_quotation;
+			$response['requirement_quotation'] = base_url().$requirement_quotation;
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		} else {
@@ -1096,7 +1033,7 @@ class Services extends CI_Controller {
 		$response = array();
 		if($q->num_rows() > 0) {
 
-			$q = $this->db->where(['project_id' => $project_id, 'id' => $requirement_id])->update('requirements', array('is_freezed' => 1));
+			$q = $this->db->where(['project_id' => $project_id, 'id' => $requirement_id])->update('requirements', array('is_freezed' => 1, 'freezed_at' => date('Y-m-d H:i:s')));
 			if($q) {
 
 				$response['success'] = true;
