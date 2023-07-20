@@ -406,6 +406,7 @@ class Services extends CI_Controller {
 		$budget = $this->input->post('budget');
 		$total_area = $this->input->post('total_area');
 		$theme_id = $this->input->post('theme_id');
+		$city_id = $this->input->post('city_id');
 
 		if(empty($user_id)) {
 			$response['success'] = false;
@@ -473,8 +474,20 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
+		if(empty($theme_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select Theme.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if(empty($city_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Please Select City.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
 
-		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'created_at' => date('Y-m-d H:i:s')));
+		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'city_id' => $city_id, 'created_at' => date('Y-m-d H:i:s')));
 		if($q) {
 			$response['success'] = true;
 			$response['message'] = 'Data Inserted Successfully.';
@@ -756,12 +769,12 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		if($request->theme_id == '') {
-			$response['success'] = false;
-			$response['message'] = 'Theme Id is Missing.';
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
-		}
+		// if($request->theme_id == '') {
+		// 	$response['success'] = false;
+		// 	$response['message'] = 'Theme Id is Missing.';
+		// 	header('Content-Type: application/json; charset=utf-8');
+		// 	echo json_encode($response);exit();
+		// }
 		// if($request->parent_category[0]->parent_category_id == '') {
 		// 	$response['success'] = false;
 		// 	$response['message'] = 'Parent Category Id is Missing.';
@@ -792,7 +805,7 @@ class Services extends CI_Controller {
 		// if($q->num_rows() > 0) {
 		// 	$max_req_no = $q->row()->requirement_no + 1;
 		// }
-		$q2 = $this->db->insert('requirements', array('user_id' => $request->user_id, 'project_id' => $request->project_id, 'theme_id' => $request->theme_id, 'created_at' => date('Y-m-d H:i:s')));
+		$q2 = $this->db->insert('requirements', array('user_id' => $request->user_id, 'project_id' => $request->project_id, 'created_at' => date('Y-m-d H:i:s')));
 		if($q2) {
 			$requirement_id = $this->db->insert_id();
 			for ($i=0; $i < count($request->categories); $i++) {
@@ -975,8 +988,8 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('osl_cus_project_requirements.parent_category_id, osl_parent_categories.name AS parent_category')->where('osl_cus_project_requirements.cus_project_id', $project_id)->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->group_by('osl_cus_project_requirements.parent_category_id')->get('osl_cus_project_requirements');
-
+		$q = $this->db->select('parent_categories.id, parent_categories.name AS parent_category')->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('parent_categories', 'parent_categories.id = categories.parent_category_id', 'left')->group_by('parent_categories.id')->get('requirement_skus');
+		// echo $this->db->last_query();die();
 		$response = array();
 		if($q->num_rows() > 0) {
 			
@@ -985,17 +998,115 @@ class Services extends CI_Controller {
 			$response['response'] = array();
 			$total = 0;
 			foreach($q->result() as $key => $value) {
-				$q2 = $this->db->select('osl_categories.name AS category, osl_parent_brand_sheets.name AS brandsheet, requirement_no, is_freezed, quotation_path, price')->where(['osl_cus_project_requirements.cus_project_id' => $project_id, 'osl_cus_project_requirements.parent_category_id' => $value->parent_category_id, 'requirement_no' => $requirement_id])->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->join('osl_categories', 'osl_categories.id = osl_cus_project_requirements.category_id', 'left')->join('osl_parent_brand_sheets', 'osl_parent_brand_sheets.id = osl_cus_project_requirements.brand_sheet_id', 'left')->join('osl_products', 'osl_products.brand_sheet_id = osl_cus_project_requirements.brand_sheet_id', 'left')->group_by('osl_cus_project_requirements.category_id')->order_by('requirement_no', 'asc')->order_by('osl_cus_project_requirements.category_id', 'asc')->get('osl_cus_project_requirements');
-				unset($value->parent_category_id);
 				$value->values = array();
-				if($q2->num_rows() > 0) {
-					foreach($q2->result() as $key => $val) {
-						if($val->quotation_path) {
-							$val->quotation_path = base_url().'requirement_quotation/'.$val->quotation_path;
-							$value->values = $q2->result();
+				$q2 = $this->db->select('requirement_skus.category_id, categories.name AS category, sku_id, brandsheets.name AS brandsheet, requirements.id AS requirement_no, is_freezed, quotation_path, price, has_subcategories')->where('categories.parent_category_id', $value->id)->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->get('requirement_skus');
+				// echo $this->db->last_query();
+				foreach($q2->result() as $key => $val) {
+					if($val->has_subcategories != '0') {
+						$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet, price')->where(['sub_categories.category_id' => $val->category_id, 'skus.id' => $val->sku_id])->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->order_by('sub_categories.category_id', 'asc')->get('sub_categories');
+						// unset($value->parent_category_id);
+						$val->sub_categories = array();
+						if($q3->num_rows() > 0) {
+							foreach($q3->result() as $key => $valu) {
+								$total += $valu->price;
+								// if($value->quotation_path) {
+								// 	$value->quotation_path = base_url().$value->quotation_path;
+								// } else {
+								// 	$value->quotation_path = '';
+								// }
+								$val->sub_categories = $q3->result();
+							}
 						}
+						unset($val->brandsheet);
+						unset($val->price);
+					} else {
 						$total += $val->price;
 					}
+					unset($val->category_id);
+					unset($val->sku_id);
+					// else {
+
+					// }
+					if($val->quotation_path) {
+						$val->quotation_path = base_url().$val->quotation_path;
+					} else {
+						$val->quotation_path = '';
+					}
+					$value->values = $q2->result();
+				}
+					unset($value->id);
+					array_push($response['response'], $value);
+			}
+			
+			$response['sub_total'] = number_format($total, 2);
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Requirement Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_requirement_correct()
+	{
+		$project_id = $this->input->post('project_id');
+		$requirement_id = $this->input->post('requirement_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($requirement_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Requirement Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->select('requirement_skus.category_id, categories.name AS category, sku_id, brandsheets.name AS brandsheet, requirements.id AS requirement_no, is_freezed, quotation_path, price, has_subcategories')->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->get('requirement_skus');
+		// echo $this->db->last_query();die();
+		$response = array();
+		if($q->num_rows() > 0) {
+			
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array();
+			$total = 0;
+			foreach($q->result() as $key => $value) {
+				if($value->has_subcategories != '0') {
+					unset($value->price);
+					unset($value->brandsheet);
+					$q2 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet, price')->where(['sub_categories.category_id' => $value->category_id, 'skus.id' => $value->sku_id])->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->order_by('sub_categories.category_id', 'asc')->get('sub_categories');
+					// unset($value->parent_category_id);
+					$value->sub_categories = array();
+					if($q2->num_rows() > 0) {
+						foreach($q2->result() as $key => $val) {
+							$total += $val->price;
+							// if($value->quotation_path) {
+							// 	$value->quotation_path = base_url().$value->quotation_path;
+							// } else {
+							// 	$value->quotation_path = '';
+							// }
+							$value->sub_categories = $q2->result();
+						}
+					}
+				} else {
+					$total += $value->price;
+				}
+				unset($value->category_id);
+				unset($value->sku_id);
+				// else {
+
+				// }
+				if($value->quotation_path) {
+					$value->quotation_path = base_url().$value->quotation_path;
+				} else {
+					$value->quotation_path = '';
 				}
 				array_push($response['response'], $value);
 			}
@@ -1133,14 +1244,16 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('requirement_no, is_freezed, quotation_path')->where('osl_cus_project_requirements.cus_project_id', $project_id)->order_by('requirement_no', 'asc')->group_by('requirement_no')->get('osl_cus_project_requirements');
+		$q = $this->db->select('requirements.id AS requirement_no, is_freezed, quotation_path')->where('requirements.project_id', $project_id)->join('requirement_skus', 'requirement_skus.requirement_id = requirements.id', 'left')->group_by('requirement_no')->order_by('requirement_no', 'asc')->get('requirements');
 
 		$response = array();
 		if($q->num_rows() > 0) {
 
 			foreach($q->result() as $key => $val) {
 				if($val->quotation_path) {
-					$val->quotation_path = base_url().'requirement_quotation/'.$val->quotation_path;
+					$val->quotation_path = base_url().$val->quotation_path;
+				} else {
+					$val->quotation_path = "";
 				}
 			}
 			
@@ -1157,184 +1270,6 @@ class Services extends CI_Controller {
 		}
 	}
 
-	// public function store_requirement_web()
-	// {
-	// 	$project_id = $this->input->post('project_id');
-	// 	$parent_category_id = $this->input->post('parent_category_id');
-	// 	$category_id = $this->input->post('category_id');
-	// 	$is_selected_id = $this->input->post('is_selected_id');
-	// 	$brand_sheet_id  = $this->input->post('brand_sheet_id');
-
-	// 	if(empty($project_id)) {
-	// 		$response['success'] = false;
-	// 		$response['message'] = 'Project Id is Missing.';
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	}
-	// 	if(empty($parent_category_id)) {
-	// 		$response['success'] = false;
-	// 		$response['message'] = 'Parent Category Id is Missing.';
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	}
-	// 	if(empty($category_id)) {
-	// 		$response['success'] = false;
-	// 		$response['message'] = 'Category Id is Missing.';
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	}
-	// 	if(empty($brand_sheet_id)) {
-	// 		$response['success'] = false;
-	// 		$response['message'] = 'Brand Sheet Id is Missing.';
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	}
-	// 	if(empty($is_selected_id)) {
-	// 		$response['success'] = false;
-	// 		$response['message'] = 'Please Select Yes or No.';
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	}
-
-	// 	$max_req_no = 1;
-	// 	$q = $this->db->select_max('requirement_no')->where('cus_project_id', $project_id)->get('osl_cus_project_requirements');
-	// 	if($q->num_rows() > 0) {
-	// 		$max_req_no = $q->row()->requirement_no + 1;
-	// 	}
-	// 	for ($i=0; $i < count($parent_category_id); $i++) {
-	// 		$q = $this->db->insert('osl_cus_project_requirements', array('cus_project_id' => $project_id, 'parent_category_id' => $parent_category_id[$i], 'category_id' => $category_id[$i], 'is_selected ' => $is_selected_id[$i], 'brand_sheet_id ' => $brand_sheet_id[$i], 'requirement_no' => $max_req_no, 'created_at' => date('Y-m-d H:i:s')));
-	// 	}
-
-	// 	// Include the main TCPDF library (search for installation path).
-	// 	require_once(APPPATH.'TCPDF/tcpdf.php');
-
-	// 	// create new PDF document
-	// 	$pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-
-	// 	// set document information
-	// 	// $pdf->SetCreator(PDF_CREATOR);
-
-	// 	// set default header data
-	// 	$pdf->SetHeaderData(PDF_HEADER_LOGO, PDF_HEADER_LOGO_WIDTH, 'Quotation');
-	// 	// $pdf->setFooterData(array(0,64,0), array(0,64,128));
-
-	// 	// set header and footer fonts
-	// 	$pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
-	// 	// $pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
-
-	// 	// set default monospaced font
-	// 	$pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
-
-	// 	// set margins
-	// 	$pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
-	// 	$pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-	// 	// $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
-
-	// 	// set auto page breaks
-	// 	$pdf->SetAutoPageBreak(TRUE, PDF_MARGIN_BOTTOM);
-
-	// 	// set image scale factor
-	// 	$pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-
-	// 	// set some language-dependent strings (optional)
-	// 	if (@file_exists(dirname(__FILE__).'/lang/eng.php')) {
-	// 		require_once(dirname(__FILE__).'/lang/eng.php');
-	// 		$pdf->setLanguageArray($l);
-	// 	}
-
-	// 	// set default font subsetting mode
-	// 	$pdf->setFontSubsetting(true);
-
-	// 	// Set font
-	// 	// dejavusans is a UTF-8 Unicode font, if you only need to
-	// 	// print standard ASCII chars, you can use core fonts like
-	// 	// helvetica or times to reduce file size.
-	// 	// $pdf->SetFont('helvetica', '', 12, '', true);
-
-	// 	// Add a page
-	// 	// This method has several options, check the source code documentation for more information.
-	// 	$pdf->AddPage();
-
-	// 	// Set some content to print
-	// 	$html = '<table border="1" cellpadding="5">';
-	// 	$total = 0;
-
-	// 	for ($i=0; $i < count($parent_category_id); $i++) {
-
-	// 		$parent_category_name = 'No Parent Category';
-	// 		$q = $this->db->select('name')->where('id', $parent_category_id[$i])->get('osl_parent_categories');
-	// 		if($q->num_rows() > 0) {
-	// 			$parent_category_name = $q->row()->name;
-	// 		}
-		
-	// 	    $html .= '<tr>
-	// 	        		<td style="font-size: 16px; font-weight: bold;">' . $parent_category_name . '</td>
-	// 	    		</tr>';
-
-	// 	    for ($j=0; $j < count($category_id); $j++) {
-
-	// 	    	$category_name = 'No Category';
-	// 	    	$q2 = $this->db->select('name')->where('id', $category_id[$j])->get('osl_categories');
-	// 	    	if($q2->num_rows() > 0) {
-	// 				$category_name = $q2->row()->name;
-	// 	    	}
-
-	// 	    	$brand_sheet_name = 'No Brand Sheet';
-	// 	    	$brand_sheet_price = number_format(0, 2);
-	// 			$q3 = $this->db->select('osl_parent_brand_sheets.name, price')->where('osl_parent_brand_sheets.id', $brand_sheet_id[$j])->join('osl_products', 'osl_products.brand_sheet_id = osl_parent_brand_sheets.id', 'left')->get('osl_parent_brand_sheets');
-	// 			if($q3->num_rows() > 0) {
-	// 				$brand_sheet_name = $q3->row()->name;
-	// 				$brand_sheet_price = $q3->row()->price;
-	// 			}
-
-	// 			if($is_selected_id[$j] == 1) {
-	// 				$selected = 'Yes';
-	// 			} else {
-	// 				$selected = 'No';
-	// 			}
-
-	// 			$total += $brand_sheet_price;
-
-	// 		    $html .= '<tr>
-	// 		    			<td style="font-size: 14px; font-weight: bold;">' . $category_name . '</td>
-	// 		    		</tr>';
-	// 		    $html .= '<tr>
-	// 		        		<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
-	// 		        	</tr>';
-	// 		    $html .= '<tr>
-	// 		        		<td style="font-size: 12px; font-weight: bold;">' . $brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $brand_sheet_price. '</td>
-	// 		        	</tr>';
-	// 		}
-	// 	}
-
-	// 	$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
-
-	// 	// Print text using writeHTMLCell()
-	// 	$pdf->writeHTMLCell(0, 0, '', '', $html, 0, 1, 0, true, '', true);
-
-	// 	// Close and output PDF document
-	// 	// This method has several options, check the source code documentation for more information.
-	// 	$requirement_quotation_path = $_SERVER['DOCUMENT_ROOT'].'api/requirement_quotation/project'.$project_id.'_requirement'.$max_req_no.'.pdf';
-	// 	$requirement_quotation = 'project'.$project_id.'_requirement'.$max_req_no.'.pdf';
-	// 	$pdf->Output($requirement_quotation_path, 'F');
-		
-	// 	$this->db->where(['cus_project_id' => $project_id, 'requirement_no' => $max_req_no])->update('osl_cus_project_requirements', ['quotation_path' => $requirement_quotation]);
-
-	// 	// echo $this->db->last_query();die();
-
-	// 	if($q) {
-	// 		$response['success'] = true;
-	// 		$response['message'] = 'Data Inserted Successfully.';
-	// 		$response['requirement_quotation'] = base_url().'requirement_quotation/'.$requirement_quotation;
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	} else {
-	// 		$response['success'] = false;
-	// 		$response['message'] = 'Error Occurred While Inserting Data.';
-	// 		header('Content-Type: application/json; charset=utf-8');
-	// 		echo json_encode($response);exit();
-	// 	}
-	// }
 	public function sign_PDF() {
 		if(empty($_FILES['signature_image']['name']) || $_FILES['signature_image']['name'] == '') {
 			$response['success'] = false;
