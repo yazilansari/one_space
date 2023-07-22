@@ -73,3 +73,5 @@ $route['v1/fetchRequirement'] = 'services/fetch_requirement';
 $route['v1/fetchProjectRequirements'] = 'services/fetch_project_requirements';
 $route['v1/signPDF'] = 'services/sign_PDF';
 $route['v1/fetchThemes'] = 'services/fetch_themes';
+$route['v1/dashboard'] = 'services/dashboard';
+$route['v1/fetchBanners'] = 'services/fetch_banners';

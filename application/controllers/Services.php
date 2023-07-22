@@ -1049,7 +1049,7 @@ class Services extends CI_Controller {
 		}
 	}
 
-	public function fetch_requirement_correct()
+	public function fetch_requirement_without_parent_category()
 	{
 		$project_id = $this->input->post('project_id');
 		$requirement_id = $this->input->post('requirement_id');
@@ -1324,5 +1324,76 @@ class Services extends CI_Controller {
 		$response['signed_pdf'] = base_url().'signed_pdf/'.$signed_pdf;
 		header('Content-Type: application/json; charset=utf-8');
 		echo json_encode($response);exit();
+	}
+
+	public function dashboard()
+	{
+		$user_id = $this->input->post('user_id');
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->select('projects.id, name, start_date, project_stage_id AS current_status')->select_max('project_stage_id' , 'current_status')->join('project_status', 'project_status.project_id = projects.id', 'left')->where('user_id', $user_id)->where('status', '4')->group_by('projects.id')->order_by('project_stage_id', 'DESC')->get('projects');
+		// echo $this->db->last_query();
+
+		$response = array();
+		if($q->num_rows() > 0) {
+			$count = 1;
+			foreach ($q->result() as $key => $value) {
+				$value->project_name = 'Project '.$count;
+				$count++;
+				if($value->start_date) {
+					$value->start_date = date('d/m/Y', strtotime($value->start_date));
+				} else {
+					$value->start_date = "";
+				}
+				if($value->current_status) {
+					$value->per_completed = (($value->current_status*100)/10)."%";
+				}
+			}
+			
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Project Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_banners()
+	{
+		$q = $this->db->select('id, image_path AS image, link')->where('is_active', 10)->get('banners');
+
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			foreach($q->result() as $key => $val) {
+				if($val->image) {
+					$val->image = base_url().$val->image;
+				} else {
+					$val->image = "";
+				}
+			}
+			
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response']['banners'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Banner Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
 	}
 }
