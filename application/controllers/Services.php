@@ -487,7 +487,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'city_id' => $city_id, 'created_at' => date('Y-m-d H:i:s')));
+		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => ($partner_project == 'none') ? NULL : $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'city_id' => $city_id, 'created_at' => date('Y-m-d H:i:s')));
 		if($q) {
 			$response['success'] = true;
 			$response['message'] = 'Data Inserted Successfully.';
@@ -1189,36 +1189,78 @@ class Services extends CI_Controller {
 		// print_r($explode_requirement_ids);die;
 		$response = array();
 		$response['response'] = array();
-			$q = $this->db->select('osl_cus_project_requirements.parent_category_id, osl_parent_categories.name AS parent_category')->where('osl_cus_project_requirements.cus_project_id', $project_id)->join('osl_parent_categories', 'osl_parent_categories.id = osl_cus_project_requirements.parent_category_id', 'left')->group_by('osl_cus_project_requirements.parent_category_id')->get('osl_cus_project_requirements');
+		$q = $this->db->select('parent_categories.id, parent_categories.name AS parent_category')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('parent_categories', 'parent_categories.id = categories.parent_category_id', 'left')->group_by('parent_categories.id')->get('requirement_skus');
+				// echo $this->db->last_query();
 		if($q->num_rows() > 0) {
 			foreach($q->result() as $key => $value) {
 				$value->values = array();
-				$q2 = $this->db->select('osl_cus_project_requirements.category_id, osl_categories.name AS category')->where(['osl_cus_project_requirements.cus_project_id' => $project_id, 'osl_cus_project_requirements.parent_category_id' => $value->parent_category_id])->join('osl_categories', 'osl_categories.id = osl_cus_project_requirements.category_id', 'left')->group_by('osl_cus_project_requirements.category_id')->order_by('osl_cus_project_requirements.category_id', 'asc')->get('osl_cus_project_requirements');
-				unset($value->parent_category_id);
+				$q2 = $this->db->select('sku_id, requirement_skus.category_id, categories.name AS category, has_subcategories')->where('categories.parent_category_id', $value->id)->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->group_by('category_id')->get('requirement_skus');
+
+				$q22 = $this->db->select('sku_id, requirement_skus.category_id')->where('categories.has_subcategories', '1')->where('categories.parent_category_id', $value->id)->where_in('requirement_skus.requirement_id', $explode_requirement_ids)
+				->join('categories', 'categories.id = requirement_skus.category_id', 'left')
+				// ->join('skus', 'skus.id = requirement_skus.sku_id', 'left')
+				// ->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')
+				// ->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')
+				->get('requirement_skus'); 
+						// echo $this->db->last_query();
+				unset($value->id);
 				foreach($q2->result() as $val) {
-					$q3 = $this->db->select('requirement_no, osl_parent_brand_sheets.name, price')->where(['osl_cus_project_requirements.cus_project_id' => $project_id, 'osl_cus_project_requirements.category_id' => $val->category_id])->where_in('requirement_no', $explode_requirement_ids)->join(' osl_parent_brand_sheets', ' osl_parent_brand_sheets.id = osl_cus_project_requirements.brand_sheet_id', 'left')->join('osl_products', ' osl_products.brand_sheet_id = osl_cus_project_requirements.brand_sheet_id', 'left')->group_by('requirement_no')->order_by('osl_cus_project_requirements.requirement_no', 'asc')->get('osl_cus_project_requirements');
-					// echo $this->db->last_query();
-					$requirement = $q3->result();
-					// echo "<pre>";print_r($requirement);
-					for ($i=0; $i < count($requirement); $i++) { 
-						$prev = ($i != 0) ? $requirement[$i-1]->name : $requirement[$i]->name;
-						if($requirement[$i]->name == $prev) {
-							$val->is_different = false;
-						} else {
-							$val->is_different = true;
+						$q3 = $this->db->select('brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $val->category_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')
+						->get('requirement_skus');
+						$requirement = $q3->result();
+						// echo "<pre>";print_r($requirement);
+						for ($i=0; $i < count($requirement); $i++) { 
+							$prev = ($i != 0) ? $requirement[$i-1]->name : $requirement[$i]->name;
+							if($requirement[$i]->name == $prev) {
+								$val->is_different = false;
+							} else {
+								$val->is_different = true;
+							}
 						}
+						foreach ($requirement as $key => $va) {
+							if(empty($va->name)) {
+								$va->name = 'NA';
+							}
+							if(empty($va->price)) {
+								$va->price = 'NA';
+							}
+						}
+						$val->requirements = array();
+						$val->requirements = $q3->result();
+					if($val->has_subcategories != '0') {
+						// $val->sub_categories = array();
+						if($q22->num_rows() > 0) {
+							foreach($q22->result() as $v) {
+								$val->requirements = array('subCategories' => $q3->result());
+								$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $v->category_id, 'skus.id' => $v->sku_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('sub_categories', 'skus.sub_category_id = sub_categories.id', 'left')
+								->get('requirement_skus');
+								echo $this->db->last_query();
+								$requirement = $q3->result();
+								// echo "<pre>";print_r($requirement);
+								for ($i=0; $i < count($requirement); $i++) { 
+									$prev = ($i != 0) ? $requirement[$i-1]->name : $requirement[$i]->name;
+									if($requirement[$i]->name == $prev) {
+										$val->is_different = false;
+									} else {
+										$val->is_different = true;
+									}
+								}
+								foreach ($requirement as $key => $va) {
+									if(empty($va->name)) {
+										$va->name = 'NA';
+									}
+									if(empty($va->price)) {
+										$va->price = 'NA';
+									}
+								}
+								// $val->requirements = $q3->result();
+								// unset($val->category_id);
+							}
+						}
+							$val->requirements = array('subCategories' => $q3->result());
 					}
-					foreach ($requirement as $key => $va) {
-						if(empty($va->name)) {
-							$va->name = 'NA';
-						}
-						if(empty($va->price)) {
-							$va->price = 'NA';
-						}
-					}
-					$val->requirements = array();
-					$val->requirements = $q3->result();
-					unset($val->category_id);
+						unset($val->category_id);
+						unset($val->sku_id);
 				}
 				$value->values = $q2->result();
 				array_push($response['response'], $value);
