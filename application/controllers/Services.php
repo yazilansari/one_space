@@ -1197,16 +1197,17 @@ class Services extends CI_Controller {
 				$q2 = $this->db->select('sku_id, requirement_skus.category_id, categories.name AS category, has_subcategories')->where('categories.parent_category_id', $value->id)->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->group_by('category_id')->get('requirement_skus');
 
 				$q22 = $this->db->select('sku_id, requirement_skus.category_id')->where('categories.has_subcategories', '1')->where('categories.parent_category_id', $value->id)->where_in('requirement_skus.requirement_id', $explode_requirement_ids)
-				->join('categories', 'categories.id = requirement_skus.category_id', 'left')
+				->join('categories', 'categories.id = requirement_skus.category_id', 'left')->group_by('sku_id')
 				// ->join('skus', 'skus.id = requirement_skus.sku_id', 'left')
 				// ->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')
 				// ->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')
 				->get('requirement_skus'); 
-						// echo $this->db->last_query();
+				// echo $this->db->last_query();
 				unset($value->id);
 				foreach($q2->result() as $val) {
 						$q3 = $this->db->select('brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $val->category_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')
 						->get('requirement_skus');
+						// echo $this->db->last_query();
 						$requirement = $q3->result();
 						// echo "<pre>";print_r($requirement);
 						for ($i=0; $i < count($requirement); $i++) { 
@@ -1230,11 +1231,14 @@ class Services extends CI_Controller {
 					if($val->has_subcategories != '0') {
 						// $val->sub_categories = array();
 						if($q22->num_rows() > 0) {
+							$val->requirements = array();
+							$val->requirements['subCategories'] = array();
 							foreach($q22->result() as $v) {
-								$val->requirements = array('subCategories' => $q3->result());
+								// $val->requirements = array('subCategories' => $q3->result());
 								$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $v->category_id, 'skus.id' => $v->sku_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('sub_categories', 'skus.sub_category_id = sub_categories.id', 'left')
+								// ->group_by('sku_id')
 								->get('requirement_skus');
-								echo $this->db->last_query();
+								// echo $this->db->last_query();
 								$requirement = $q3->result();
 								// echo "<pre>";print_r($requirement);
 								for ($i=0; $i < count($requirement); $i++) { 
@@ -1252,12 +1256,12 @@ class Services extends CI_Controller {
 									if(empty($va->price)) {
 										$va->price = 'NA';
 									}
+									array_push($val->requirements['subCategories'], $va);
 								}
 								// $val->requirements = $q3->result();
 								// unset($val->category_id);
 							}
 						}
-							$val->requirements = array('subCategories' => $q3->result());
 					}
 						unset($val->category_id);
 						unset($val->sku_id);
@@ -1434,6 +1438,166 @@ class Services extends CI_Controller {
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Banner Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_parent_categories_selection()
+	{
+		$project_id = $this->input->post('project_id');
+		$user_id = $this->input->post('user_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$response = array();
+
+		$q = $this->db->select('quotation_price AS budget, room_type_id')->join('projects', ' projects.id = requirements.project_id', 'left')->where('project_id', $project_id)->where('is_freezed', 1)->get('requirements');
+		$budget = 0.00;
+		if($q->num_rows() > 0) {
+			$budget = $q->row()->budget;
+			$room_type_id = $q->row()->room_type_id;
+			if($room_type_id == 4) {
+				$q2 = $this->db->select('id, name, image_path AS image')->where('id !=', 6)->get('parent_categories');
+			} else {
+				$q2 = $this->db->select('id, name, image_path AS image')->get('parent_categories');
+			}
+		}
+
+		if($q2->num_rows() > 0) {			
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array();
+			$response['response']['budget'] = $budget;
+			$response['response']['parent_categories'] = array();
+			foreach($q2->result() as $key => $value) {
+				if($value->image) {
+					$value->image = base_url().$val->image;
+				} else {
+					$value->image = "";
+				}
+				$value->categories = '';
+				$categories = [];
+				$q3 = $this->db->select('name')->where('parent_category_id', $value->id)->get('categories');
+				foreach($q3->result() as $key => $val) {
+					array_push($categories, $val->name);
+				}
+				$categories_impl = implode(', ', $categories);
+				$value->categories = $categories_impl;
+				$value->total_categories_count = count($categories);
+				$value->selected_categories_count = 0;
+				array_push($response['response']['parent_categories'], $value);
+			}
+			
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Parent Category Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_categories_selection()
+	{
+		$project_id = $this->input->post('project_id');
+		$user_id = $this->input->post('user_id');
+		$parent_category_id = $this->input->post('parent_category_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($parent_category_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Parent Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$response = array();
+
+		$q = $this->db->select('categories.id, categories.name, categories.image_path AS image')
+		->where('parent_category_id', $parent_category_id)
+		// ->where('is_selected', 1)
+		->get('categories');
+		if($q->num_rows() > 0) {			
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array();
+			$response['response']['categories'] = array();
+			foreach($q->result() as $key => $value) {
+				if($value->image) {
+					$value->image = base_url().$val->image;
+				} else {
+					$value->image = "";
+				}
+				// $value->selected_brandsheet = '';
+				$q2 = $this->db->select('brandsheets.name AS brandsheet')
+				->join('requirements', ' requirements.id = requirement_skus.requirement_id', 'left')
+				->join('projects', ' projects.id = requirements.project_id', 'left')
+				->join('skus', ' skus.id = requirement_skus.sku_id', 'left')
+				->join('brandsheets', ' brandsheets.id = skus.brandsheet_id', 'left')->where('requirement_skus.category_id', $value->id)
+				->where('projects.id', $project_id)
+				->where('is_selected', 1)->get('requirement_skus');
+				// echo $this->db->last_query();
+				$selected_brandsheet = '';
+				$selection_status = 0;
+				$selected_sub_categories = array();
+				foreach($q2->result() as $key => $val) {
+					$selected_brandsheet = $val->brandsheet;
+				}
+				if($selected_brandsheet == '') {
+					$selection_status = 2;
+				} else {
+					$selection_status = 1;
+				}
+				$value->selected_brandsheet = $selected_brandsheet;
+				$value->selection_status = $selection_status;
+				// $value->selected_sub_categories = array();
+				$q3 = $this->db->select('sub_categories.id AS sub_category_id, sub_categories.name AS sub_category_name,') 
+				->join('requirements', ' requirements.id = requirement_skus.requirement_id', 'left')
+				->join('projects', ' projects.id = requirements.project_id', 'left')
+				->join('sub_categories', ' sub_categories.id = requirement_skus.sub_category_id', 'left')->where('requirement_skus.category_id', $value->id)
+				->where('projects.id', $project_id)
+				->where('is_selected', 1)
+				->get('requirement_skus');
+				// echo $this->db->last_query();
+				foreach ($q3->result() as $key => $va) {
+					array_push($selected_sub_categories, $va);
+				}
+				$value->selected_sub_categories = $selected_sub_categories;
+				array_push($response['response']['categories'], $value);
+			}
+			
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Parent Category Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}

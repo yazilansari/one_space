@@ -75,3 +75,5 @@ $route['v1/signPDF'] = 'services/sign_PDF';
 $route['v1/fetchThemes'] = 'services/fetch_themes';
 $route['v1/dashboard'] = 'services/dashboard';
 $route['v1/fetchBanners'] = 'services/fetch_banners';
+$route['v1/fetchParentCategoriesSelection'] = 'services/fetch_parent_categories_selection';
+$route['v1/fetchCategoriesSelection'] = 'services/fetch_categories_selection';
