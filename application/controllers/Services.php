@@ -988,7 +988,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('parent_categories.id, parent_categories.name AS parent_category')->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('parent_categories', 'parent_categories.id = categories.parent_category_id', 'left')->group_by('parent_categories.id')->get('requirement_skus');
+		$q = $this->db->select('parent_categories.id, parent_categories.name AS parent_category')->where('projects.id', $project_id)->where('requirement_skus.requirement_id', $requirement_id)->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('projects', 'projects.id = requirements.project_id', 'left')->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('parent_categories', 'parent_categories.id = categories.parent_category_id', 'left')->group_by('parent_categories.id')->get('requirement_skus');
 		// echo $this->db->last_query();die();
 		$response = array();
 		if($q->num_rows() > 0) {
@@ -999,15 +999,23 @@ class Services extends CI_Controller {
 			$total = 0;
 			foreach($q->result() as $key => $value) {
 				$value->values = array();
-				$q2 = $this->db->select('requirement_skus.category_id, categories.name AS category, sku_id, brandsheets.name AS brandsheet, requirements.id AS requirement_no, is_freezed, quotation_path, price, has_subcategories')->where('categories.parent_category_id', $value->id)->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->get('requirement_skus');
+				$q2 = $this->db->select('requirement_skus.category_id, categories.name AS category, sku_id, brandsheets.name AS brandsheet, requirements.id AS requirement_no, is_freezed, quotation_path, price, has_subcategories')->where('categories.parent_category_id', $value->id)->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->group_by('requirement_skus.category_id')->get('requirement_skus');
 				// echo $this->db->last_query();
 				foreach($q2->result() as $key => $val) {
+					if($val->brandsheet == NULL || $val->price == NULL) {
+						$val->brandsheet = '';
+						$val->price = 0;
+					}
 					if($val->has_subcategories != '0') {
 						$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet, price')->where(['sub_categories.category_id' => $val->category_id, 'skus.id' => $val->sku_id])->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->order_by('sub_categories.category_id', 'asc')->get('sub_categories');
 						// unset($value->parent_category_id);
 						$val->sub_categories = array();
 						if($q3->num_rows() > 0) {
 							foreach($q3->result() as $key => $valu) {
+								if($valu->brandsheet == NULL || $valu->price == NULL) {
+									$valu->brandsheet = '';
+									$valu->price = 0;
+								}
 								$total += $valu->price;
 								// if($value->quotation_path) {
 								// 	$value->quotation_path = base_url().$value->quotation_path;
@@ -1236,7 +1244,7 @@ class Services extends CI_Controller {
 							foreach($q22->result() as $v) {
 								// $val->requirements = array('subCategories' => $q3->result());
 								$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $v->category_id, 'skus.id' => $v->sku_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('sub_categories', 'skus.sub_category_id = sub_categories.id', 'left')
-								// ->group_by('sku_id')
+								->group_by('requirements.id')
 								->get('requirement_skus');
 								// echo $this->db->last_query();
 								$requirement = $q3->result();
@@ -1464,8 +1472,10 @@ class Services extends CI_Controller {
 
 		$response = array();
 
-		$q = $this->db->select('quotation_price AS budget, room_type_id')->join('projects', ' projects.id = requirements.project_id', 'left')->where('project_id', $project_id)->where('is_freezed', 1)->get('requirements');
+		$q = $this->db->select('selected_budget AS budget, room_type_id')->join('projects', ' projects.id = requirements.project_id', 'left')->where('project_id', $project_id)->where('is_freezed', 1)->get('requirements');
+		// echo $this->db->last_query();
 		$budget = 0.00;
+		// $q2 = [];
 		if($q->num_rows() > 0) {
 			$budget = $q->row()->budget;
 			$room_type_id = $q->row()->room_type_id;
@@ -1474,40 +1484,46 @@ class Services extends CI_Controller {
 			} else {
 				$q2 = $this->db->select('id, name, image_path AS image')->get('parent_categories');
 			}
-		}
-
-		if($q2->num_rows() > 0) {			
-			$response['success'] = true;
-			$response['message'] = 'Fetched Successfully.';
-			$response['response'] = array();
-			$response['response']['budget'] = $budget;
-			$response['response']['parent_categories'] = array();
-			foreach($q2->result() as $key => $value) {
-				if($value->image) {
-					$value->image = base_url().$val->image;
-				} else {
-					$value->image = "";
+		// }
+		// print_r($q2);
+			if($q2->num_rows() > 0) {
+				$response['success'] = true;
+				$response['message'] = 'Fetched Successfully.';
+				$response['response'] = array();
+				$response['response']['budget'] = $budget;
+				$response['response']['parent_categories'] = array();
+				foreach($q2->result() as $key => $value) {
+					if($value->image) {
+						$value->image = base_url().$val->image;
+					} else {
+						$value->image = "";
+					}
+					$value->categories = '';
+					$categories = [];
+					$q3 = $this->db->select('name')->where('parent_category_id', $value->id)->get('categories');
+					foreach($q3->result() as $key => $val) {
+						array_push($categories, $val->name);
+					}
+					$categories_impl = implode(', ', $categories);
+					$value->categories = $categories_impl;
+					$value->total_categories_count = count($categories);
+					$value->selected_categories_count = 0;
+					array_push($response['response']['parent_categories'], $value);
 				}
-				$value->categories = '';
-				$categories = [];
-				$q3 = $this->db->select('name')->where('parent_category_id', $value->id)->get('categories');
-				foreach($q3->result() as $key => $val) {
-					array_push($categories, $val->name);
-				}
-				$categories_impl = implode(', ', $categories);
-				$value->categories = $categories_impl;
-				$value->total_categories_count = count($categories);
-				$value->selected_categories_count = 0;
-				array_push($response['response']['parent_categories'], $value);
+				
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+			} else {
+				$response['success'] = false;
+				$response['message'] = 'No Parent Category.';
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
 			}
-			
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
 		} else {
-			$response['success'] = false;
-			$response['message'] = 'No Parent Category Found.';
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
+				$response['success'] = false;
+				$response['message'] = 'No Freeze Requirement Found.';
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
 		}
 	}
 
@@ -1566,7 +1582,7 @@ class Services extends CI_Controller {
 				// echo $this->db->last_query();
 				$selected_brandsheet = '';
 				$selection_status = 0;
-				$selected_sub_categories = array();
+				$selected_sub_category = '';
 				foreach($q2->result() as $key => $val) {
 					$selected_brandsheet = $val->brandsheet;
 				}
@@ -1578,18 +1594,28 @@ class Services extends CI_Controller {
 				$value->selected_brandsheet = $selected_brandsheet;
 				$value->selection_status = $selection_status;
 				// $value->selected_sub_categories = array();
-				$q3 = $this->db->select('sub_categories.id AS sub_category_id, sub_categories.name AS sub_category_name,') 
+				$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet') 
 				->join('requirements', ' requirements.id = requirement_skus.requirement_id', 'left')
 				->join('projects', ' projects.id = requirements.project_id', 'left')
 				->join('sub_categories', ' sub_categories.id = requirement_skus.sub_category_id', 'left')->where('requirement_skus.category_id', $value->id)
+				->join('skus', ' skus.id = requirement_skus.sku_id', 'left')
+				->join('brandsheets', ' brandsheets.id = skus.brandsheet_id', 'left')
 				->where('projects.id', $project_id)
 				->where('is_selected', 1)
 				->get('requirement_skus');
 				// echo $this->db->last_query();
 				foreach ($q3->result() as $key => $va) {
-					array_push($selected_sub_categories, $va);
+					$selected_brandsheet = $va->brandsheet == NULL ? '' : $va->brandsheet;
+					$selected_sub_category = $va->sub_category_name;
 				}
-				$value->selected_sub_categories = $selected_sub_categories;
+				if($selected_brandsheet == '') {
+					$selection_status = 2;
+				} else {
+					$selection_status = 1;
+				}
+				$value->selected_brandsheet = $selected_brandsheet;
+				$value->selection_status = $selection_status;
+				$value->selected_sub_category = $selected_sub_category;
 				array_push($response['response']['categories'], $value);
 			}
 			
@@ -1598,6 +1624,25 @@ class Services extends CI_Controller {
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Parent Category Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_penalist()
+	{
+		$q = $this->db->select('users.id, users.name, rating, projects_completed, accuracy')->join('model_has_roles', 'model_has_roles.model_id = users.id', 'left')->join('roles', 'roles.id = model_has_roles.role_id', 'left')->join('user_metas', 'user_metas.user_id = users.id', 'left')->where('roles.id', 6)->get('users');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Penalist Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
