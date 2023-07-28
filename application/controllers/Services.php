@@ -268,7 +268,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 		// else {
-			$q = $this->db->insert('users', array('first_name' => $first_name, 'last_name' => $last_name, 'email' => $email, 'phone' => $mobile_no, 'city_id' => $city_id, 'device_id' => $device_id, 'device_type' => $device_type, 'fcm_token' => $fcm_token, 'referred_from' => $referred_from, 'other_reference' => $other_reference, 'room_type_id' => $flat_type, 'country_code' => $country_code));
+			$q = $this->db->insert('users', array('name' =>$first_name.' '.$last_name, 'first_name' => $first_name, 'last_name' => $last_name, 'email' => $email, 'phone' => $mobile_no, 'city_id' => $city_id, 'device_id' => $device_id, 'device_type' => $device_type, 'fcm_token' => $fcm_token, 'referred_from' => $referred_from, 'other_reference' => $other_reference, 'room_type_id' => $flat_type, 'country_code' => $country_code, 'created_at' => date('Y-m-d H:i:s')));
 			if($q) {
 				$customer_id = $this->db->insert_id();
 				$q2 = $this->db->select('id')->where('name', 'Customer')->get('roles');
