@@ -78,3 +78,6 @@ $route['v1/fetchBanners'] = 'services/fetch_banners';
 $route['v1/fetchParentCategoriesSelection'] = 'services/fetch_parent_categories_selection';
 $route['v1/fetchCategoriesSelection'] = 'services/fetch_categories_selection';
 $route['v1/fetchPenalist'] = 'services/fetch_penalist';
+$route['v1/updateFCMTokenDeviceId'] = 'services/update_fcm_token_device_id';
+$route['v1/updateProjectPenalist'] = 'services/update_project_penalist';
+$route['v1/fetchProjectDetails'] = 'services/fetch_project_details';
