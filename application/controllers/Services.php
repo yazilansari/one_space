@@ -1011,6 +1011,7 @@ class Services extends CI_Controller {
 						$val->brandsheet = '';
 						$val->price = 0;
 					}
+					$val->sub_category_name = '';
 					if($val->has_subcategories != '0') {
 						$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet, price')->where(['sub_categories.category_id' => $val->category_id, 'skus.id' => $val->sku_id])->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->order_by('sub_categories.category_id', 'asc')->get('sub_categories');
 						// unset($value->parent_category_id);
@@ -1057,6 +1058,8 @@ class Services extends CI_Controller {
 			}
 			
 			$response['sub_total'] = number_format($total, 2);
+			$q4 = $this->db->select('name')->where('id', $project_id)->get('projects');
+			$response['project_name'] = $q4->row()->name;
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		} else {
