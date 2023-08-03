@@ -1827,4 +1827,32 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 	}
+
+	public function fetch_project_timelines()
+	{
+		$project_id = $this->input->post('project_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->select('timeline_detail_master_id, required_days, required_date, actual_days, actual_date, remarks, documents')->where('project_id', $project_id)->get('project_timelines');
+		$response = array();
+		if($q->num_rows() > 0) {
+
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->result();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No Project Timeline Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
 }

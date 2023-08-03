@@ -81,3 +81,4 @@ $route['v1/fetchPenalist'] = 'services/fetch_penalist';
 $route['v1/updateFCMTokenDeviceId'] = 'services/update_fcm_token_device_id';
 $route['v1/updateProjectPenalist'] = 'services/update_project_penalist';
 $route['v1/fetchProjectDetails'] = 'services/fetch_project_details';
+$route['v1/fetchProjectTimelines'] = 'services/fetch_project_timelines';
