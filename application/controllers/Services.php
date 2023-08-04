@@ -1241,6 +1241,7 @@ class Services extends CI_Controller {
 						}
 					}
 					foreach ($requirement as $key => $va) {
+						$va->sub_category_name = "NA";
 						if(empty($va->name)) {
 							$va->name = 'NA';
 						}
@@ -1256,7 +1257,7 @@ class Services extends CI_Controller {
 						// $val->sub_categories = array();
 						if($q22->num_rows() > 0) {
 							$val->requirements = array();
-							$val->requirements['subCategories'] = array();
+							// $val->requirements['subCategories'] = array();
 							foreach($q22->result() as $v) {
 								// $val->requirements = array('subCategories' => $q3->result());
 								$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $v->category_id, 'skus.id' => $v->sku_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('sub_categories', 'skus.sub_category_id = sub_categories.id', 'left')
@@ -1284,7 +1285,8 @@ class Services extends CI_Controller {
 										$va->price = 0;
 									}
 									// $total += $va->price;
-									array_push($val->requirements['subCategories'], $va);
+									// array_push($val->requirements['subCategories'], $va);
+									array_push($val->requirements, $va);
 								}
 								// $val->requirements = $q3->result();
 								// unset($val->category_id);
@@ -1297,7 +1299,16 @@ class Services extends CI_Controller {
 				$value->values = $q2->result();
 				array_push($response['response'], $value);
 			}
-			$response['sub_total'] = number_format($total, 2);
+			$sub_total = array();
+			foreach ($explode_requirement_ids as $key => $value) {
+				$q4 = $this->db->select('SUM(price) AS price')->where('requirement_skus.requirement_id', $value)->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->get('requirement_skus');
+				$price = $q4->row()->price;
+				array_push($sub_total, $price != NUll && !empty($price) ? number_format($price, 2) : 0.00);
+				
+			}
+			// echo $this->db->last_query();
+			// $response['sub_total'] = number_format($total, 2);
+			$response['sub_total'] = $sub_total;
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		} else {
@@ -1438,8 +1449,9 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		} else {
-			$response['success'] = false;
-			$response['message'] = 'No Project Found.';
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array(array("id" => "0", "name" => "", "start_date" => "00/00/0000", "current_status" => "0", "project_name" => "", "per_completed" => "0%"));
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
@@ -1851,6 +1863,34 @@ class Services extends CI_Controller {
 		} else {
 			$response['success'] = false;
 			$response['message'] = 'No Project Timeline Found.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_user()
+	{
+		$user_id = $this->input->post('user_id');
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$q = $this->db->select('name, first_name, last_name, phone, email, fcm_token')->where('id', $user_id)->get('users');
+		$response = array();
+		if($q->num_rows() > 0) {
+			trim($q->row()->name);
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = $q->row();
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'No User Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
