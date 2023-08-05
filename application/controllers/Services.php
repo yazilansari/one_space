@@ -1423,35 +1423,43 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('projects.id, name, start_date, project_stage_id AS current_status')->select_max('project_stage_id' , 'current_status')->join('project_status', 'project_status.project_id = projects.id', 'left')->where('user_id', $user_id)->where('status', '4')->group_by('projects.id')->order_by('project_stage_id', 'DESC')->get('projects');
-		// echo $this->db->last_query();
+		$q2 = $this->db->where('user_id', $user_id)->get('projects');
+		if($q2->num_rows() > 0) {
+			$q = $this->db->select('projects.id, name, start_date, project_stage_id AS current_status')->select_max('project_stage_id' , 'current_status')->join('project_status', 'project_status.project_id = projects.id', 'left')->where('user_id', $user_id)->where('status', '4')->group_by('projects.id')->order_by('project_stage_id', 'DESC')->get('projects');
+			// echo $this->db->last_query();
 
-		$response = array();
-		if($q->num_rows() > 0) {
-			$count = 1;
-			foreach ($q->result() as $key => $value) {
-				$value->project_name = 'Project '.$count;
-				$count++;
-				if($value->start_date) {
-					$value->start_date = date('d/m/Y', strtotime($value->start_date));
-				} else {
-					$value->start_date = "";
+			$response = array();
+			if($q->num_rows() > 0) {
+				$count = 1;
+				foreach ($q->result() as $key => $value) {
+					$value->project_name = 'Project '.$count;
+					$count++;
+					if($value->start_date) {
+						$value->start_date = date('d/m/Y', strtotime($value->start_date));
+					} else {
+						$value->start_date = "";
+					}
+					if($value->current_status) {
+						$value->per_completed = (($value->current_status*100)/10)."%";
+						// unset($value->project_stage_id);
+					}
 				}
-				if($value->project_stage_id) {
-					$value->per_completed = (($value->current_status*100)/10)."%";
-					unset($value->project_stage_id);
-				}
+				
+				$response['success'] = true;
+				$response['message'] = 'Fetched Successfully.';
+				$response['response'] = $q->result();
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+			} else {
+				$response['success'] = true;
+				$response['message'] = 'Fetched Successfully.';
+				$response['response'] = array(array("id" => "0", "name" => "", "start_date" => "00/00/0000", "current_status" => "0", "project_name" => "", "per_completed" => "0%"));
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
 			}
-			
-			$response['success'] = true;
-			$response['message'] = 'Fetched Successfully.';
-			$response['response'] = $q->result();
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
 		} else {
-			$response['success'] = true;
-			$response['message'] = 'Fetched Successfully.';
-			$response['response'] = array(array("id" => "0", "name" => "", "start_date" => "00/00/0000", "current_status" => "0", "project_name" => "", "per_completed" => "0%"));
+			$response['success'] = false;
+			$response['message'] = 'No Project Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
