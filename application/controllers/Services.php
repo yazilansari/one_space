@@ -513,9 +513,10 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q2 = $this->db->select('room_type_id')->where('id', $project_id)->get('projects');
+		$q2 = $this->db->select('selected_budget AS budget, room_type_id')->where('id', $project_id)->get('projects');
 		if($q2->num_rows() > 0) {
 			$room_type_id = $q2->row()->room_type_id;
+			$budget = $q2->row()->budget;
 			if($room_type_id == 4) {
 				$q = $this->db->select('id, name')->where('id !=', 6)->get('parent_categories');
 			} else {
@@ -527,6 +528,7 @@ class Services extends CI_Controller {
 				$response['success'] = true;
 				$response['message'] = 'Fetched Successfully.';
 				$response['response'] = $q->result();
+				$response['budget'] = $budget;
 				header('Content-Type: application/json; charset=utf-8');
 				echo json_encode($response);exit();
 			} else {
@@ -1423,14 +1425,14 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
+		$response = array();
+		$count = 1;
 		$q2 = $this->db->where('user_id', $user_id)->get('projects');
 		if($q2->num_rows() > 0) {
-			$q = $this->db->select('projects.id, name, start_date, project_stage_id AS current_status')->select_max('project_stage_id' , 'current_status')->join('project_status', 'project_status.project_id = projects.id', 'left')->where('user_id', $user_id)->where('status', '4')->group_by('projects.id')->order_by('project_stage_id', 'DESC')->get('projects');
+			$q = $this->db->select('projects.id, name, project_stage_id, start_date, project_stage_id AS current_status')->select_max('project_stage_id' , 'current_status')->join('project_status', 'project_status.project_id = projects.id', 'left')->where('user_id', $user_id)->where('status', '4')->group_by('projects.id')->order_by('project_stage_id', 'DESC')->get('projects');
 			// echo $this->db->last_query();
 
-			$response = array();
 			if($q->num_rows() > 0) {
-				$count = 1;
 				foreach ($q->result() as $key => $value) {
 					$value->project_name = 'Project '.$count;
 					$count++;
@@ -1439,9 +1441,9 @@ class Services extends CI_Controller {
 					} else {
 						$value->start_date = "";
 					}
-					if($value->current_status) {
+					if($value->project_stage_id) {
 						$value->per_completed = (($value->current_status*100)/10)."%";
-						// unset($value->project_stage_id);
+						unset($value->project_stage_id);
 					}
 				}
 				
@@ -1451,11 +1453,30 @@ class Services extends CI_Controller {
 				header('Content-Type: application/json; charset=utf-8');
 				echo json_encode($response);exit();
 			} else {
-				$response['success'] = true;
-				$response['message'] = 'Fetched Successfully.';
-				$response['response'] = array(array("id" => "0", "name" => "", "start_date" => "00/00/0000", "current_status" => "0", "project_name" => "", "per_completed" => "0%"));
-				header('Content-Type: application/json; charset=utf-8');
-				echo json_encode($response);exit();
+				$q = $this->db->select('projects.id, name, start_date')->where('user_id', $user_id)->get('projects');
+				if($q->num_rows() > 0) {
+					foreach ($q->result() as $key => $value) {
+						$value->project_name = 'Project '.$count;
+						$count++;
+						if($value->start_date) {
+							$value->start_date = date('d/m/Y', strtotime($value->start_date));
+						} else {
+							$value->start_date = "";
+						}
+						$value->current_status = "0";
+						$value->per_completed = "0%";
+					}
+					$response['success'] = true;
+					$response['message'] = 'Fetched Successfully.';
+					$response['response'] = $q->result();
+					header('Content-Type: application/json; charset=utf-8');
+					echo json_encode($response);exit();
+				} else {
+					$response['success'] = false;
+					$response['message'] = 'No Project Found.';
+					header('Content-Type: application/json; charset=utf-8');
+					echo json_encode($response);exit();
+				}
 			}
 		} else {
 			$response['success'] = false;
@@ -1800,44 +1821,69 @@ class Services extends CI_Controller {
 		$response = array();
 		if($q->num_rows() > 0) {
 
-			foreach ($q->result() as $key => $value) {
-				if($value->partner_project == NULL || $value->start_date == NULL) {
-					$value->partner_project = '';
-					$value->start_date = '';
-				} else {
-					$value->start_date = date('d/m/Y', strtotime($value->start_date));
+			// foreach ($q->result() as $key => $value) {
+			$value = $q->row();
+			if($value->partner_project == NULL || $value->start_date == NULL) {
+				$value->partner_project = '';
+				$value->start_date = '';
+			} else {
+				$value->start_date = date('d/m/Y', strtotime($value->start_date));
+			}
+
+
+			if($value->property_type == '1') {
+				$property_type = 'Flat';
+			} elseif($value->property_type == '2') {
+				$property_type = 'Row House';
+			} elseif($value->property_type == '3') {
+				$property_type = 'Independent House';
+			}
+			$value->property_type = $property_type;
+
+			if($value->project_type == '1') {
+				$project_type = 'Consultancy';
+			} elseif($value->project_type == '2') {
+				$project_type = 'Turnkey';
+			} elseif($value->project_type == '3') {
+				$project_type = 'Others';
+			}
+			$value->project_type = $project_type;
+
+			$value->document_enabled = false;
+		    $value->timeline_enabled = false;
+		    $value->product_enabled = false;
+		    $value->panelist_enabled = false;
+		    $value->daily_work_status_enabled = false;
+		    $value->feedback_enabled = false;
+			// }
+
+			$q2 = $this->db->where('project_id', $project_id)->get('project_status');
+			if($q2->num_rows() > 0) {
+				foreach ($q2->result() as $key => $val) {
+					if($val->project_stage_id == 1 && $val->status == 1) {
+						$value->document_enabled = true;
+					}
+					if($val->project_stage_id >= 3) {
+						$value->timeline_enabled = true;
+					}
+					if($val->project_stage_id == 4) {
+						$value->product_enabled = true;
+					}
+					if($val->project_stage_id == 6) {
+						$value->panelist_enabled = true;
+					}
+					if($val->project_stage_id == 7 && $val->status == 1) {
+						$value->daily_work_status_enabled = true;
+					}
+					if($val->project_stage_id == 10) {
+						$value->feedback_enabled = true;
+					}
 				}
-
-
-				if($value->property_type == '1') {
-					$property_type = 'Flat';
-				} elseif($value->property_type == '2') {
-					$property_type = 'Row House';
-				} elseif($value->property_type == '3') {
-					$property_type = 'Independent House';
-				}
-				$value->property_type = $property_type;
-
-				if($value->project_type == '1') {
-					$project_type = 'Consultancy';
-				} elseif($value->project_type == '2') {
-					$project_type = 'Turnkey';
-				} elseif($value->project_type == '3') {
-					$property_type = 'Others';
-				}
-				$value->project_type = $project_type;
-
-				$value->document_enabled = false;
-			    $value->timeLine_enabled = false;
-			    $value->product_enabled = false;
-			    $value->panelist_enabled = false;
-			    $value->daily_work_status_enabled = false;
-			    $value->feedback_enabled = false;
 			}
 
 			$response['success'] = true;
 			$response['message'] = 'Fetched Successfully.';
-			$response['response'] = $q->result();
+			$response['response'] = $q->row();
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		} else {
@@ -1859,7 +1905,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->select('timeline_detail_master_id, required_days, required_date, actual_days, actual_date, remarks, documents')->where('project_id', $project_id)->get('project_timelines');
+		$q = $this->db->select('timeline_detail_master_id, name, required_days, required_date, actual_days, actual_date, remarks, documents')->join('timeline_details_master', 'timeline_details_master.id = project_timelines.timeline_detail_master_id')->where('project_id', $project_id)->get('project_timelines');
 		$response = array();
 		if($q->num_rows() > 0) {
 
