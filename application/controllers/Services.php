@@ -1557,7 +1557,7 @@ class Services extends CI_Controller {
 				$response['response']['parent_categories'] = array();
 				foreach($q2->result() as $key => $value) {
 					if($value->image) {
-						$value->image = base_url().$val->image;
+						$value->image = base_url().$value->image;
 					} else {
 						$value->image = "";
 					}
@@ -1630,7 +1630,7 @@ class Services extends CI_Controller {
 			$response['response']['categories'] = array();
 			foreach($q->result() as $key => $value) {
 				if($value->image) {
-					$value->image = base_url().$val->image;
+					$value->image = base_url().$value->image;
 				} else {
 					$value->image = "";
 				}
@@ -1947,6 +1947,124 @@ class Services extends CI_Controller {
 			$response['message'] = 'No User Found.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
+		}
+	}
+
+	public function fetch_products_selection()
+	{
+		$project_id = $this->input->post('project_id');
+		$user_id = $this->input->post('user_id');
+		$category_id = $this->input->post('category_id');
+
+		if(empty($project_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($user_id)) {
+			$response['success'] = false;
+			$response['message'] = 'User Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		if(empty($category_id)) {
+			$response['success'] = false;
+			$response['message'] = 'Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+
+		$response = array();
+
+		$q = $this->db->select('selected_budget AS budget, sub_category_id, brandsheet_id, sku_id')->join('projects', ' projects.id = requirements.project_id', 'left')->join('requirement_skus', 'requirement_skus.requirement_id = requirements.id', 'left')->where('project_id', $project_id)->where('is_freezed', 1)->get('requirements');
+		// echo $this->db->last_query();
+		$budget = 0.00;
+		if($q->num_rows() > 0) {
+			$budget = $q->row()->budget;
+			$sub_category_id = $q->row()->sub_category_id;
+			$brandsheet_id = $q->row()->brandsheet_id;
+			$sku_id = $q->row()->sku_id;
+			$response['success'] = true;
+			$response['message'] = 'Fetched Successfully.';
+			$response['response'] = array();
+			$response['response']['budget'] = $budget;
+			$response['response']['sub_categories'] = array();
+			$response['response']['brandsheets'] = array();
+			$response['response']['designs'] = array();
+			$response['response']['filters'] = array();
+			$q2 = $this->db->select('id, name, image_path AS image')
+			->where('category_id', $category_id)
+			// ->where('is_selected', 1)
+			->get('sub_categories');
+			if($q2->num_rows() > 0) {
+				foreach($q2->result() as $key => $value) {
+					if($value->image) {
+						$value->image = base_url().$value->image;
+					} else {
+						$value->image = "";
+					}
+					$value->is_selected = $sub_category_id == $value->id ? true : false;
+					array_push($response['response']['sub_categories'], $value);
+				}
+			}
+			$q3 = $this->db->select('id, name, image_path AS image')
+			// ->where('category_id', $category_id)
+			// ->where('is_selected', 1)
+			->get('brandsheets');
+			if($q3->num_rows() > 0) {
+				foreach($q3->result() as $key => $valu) {
+					if($valu->image) {
+						$valu->image = base_url().$valu->image;
+					} else {
+						$valu->image = "";
+					}
+					$valu->is_selected = $brandsheet_id == $valu->id ? true : false;
+					array_push($response['response']['brandsheets'], $valu);
+				}
+			}
+			$q4 = $this->db->select('id, name, description, image_path AS image')
+			->where('sku_id', $sku_id)
+			// ->where('is_selected', 1)
+			->get('products');
+			if($q4->num_rows() > 0) {
+				foreach($q4->result() as $key => $val) {
+					if($valu->image) {
+						$val->image = base_url().$val->image;
+					} else {
+						$val->image = "";
+					}
+					array_push($response['response']['designs'], $val);
+				}
+			}
+			$q5 = $this->db->select('sku_meta_master_names.id, name')->join('sku_meta_master_names', 'sku_meta_master_names.id = sku_metas.meta_name_id')
+			->where('sku_id', $sku_id)
+			// ->where('is_selected', 1)
+			->get('sku_metas');
+			if($q5->num_rows() > 0) {
+				foreach($q5->result() as $key => $v) {
+					$v->values = array();
+					$q6 = $this->db->select('id, value')
+					->where('meta_name_id', $v->id)
+					// ->where('is_selected', 1)
+					->get('sku_meta_master_values');
+					if($q6->num_rows() > 0) {
+						$v->values = $q6->result();
+					}
+					unset($v->id);
+				}
+				$response['response']['filters'] = $q5->result();
+			}
+				
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
+		} else {
+				$response['success'] = false;
+				$response['message'] = 'No Freeze Requirement Found.';
+				header('Content-Type: application/json; charset=utf-8');
+				echo json_encode($response);exit();
 		}
 	}
 }
