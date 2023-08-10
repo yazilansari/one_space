@@ -1979,7 +1979,7 @@ class Services extends CI_Controller {
 
 		$response = array();
 
-		$q = $this->db->select('selected_budget AS budget, sub_category_id, brandsheet_id, sku_id')->join('projects', ' projects.id = requirements.project_id', 'left')->join('requirement_skus', 'requirement_skus.requirement_id = requirements.id', 'left')->where('project_id', $project_id)->where('is_freezed', 1)->get('requirements');
+		$q = $this->db->select('selected_budget AS budget, sub_category_id, brandsheet_id, sku_id')->join('projects', ' projects.id = requirements.project_id', 'left')->join('requirement_skus', 'requirement_skus.requirement_id = requirements.id', 'left')->where('category_id', $category_id)->where('project_id', $project_id)->where('is_freezed', 1)->get('requirements');
 		// echo $this->db->last_query();
 		$budget = 0.00;
 		if($q->num_rows() > 0) {
