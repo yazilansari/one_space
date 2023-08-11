@@ -69,3 +69,8 @@ Acknowledgement
 
 The CodeIgniter team would like to thank EllisLab, all the
 contributors to the CodeIgniter project and you, the CodeIgniter user.
+
+
+select name, REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(name, 'DR ', '') , 'Dr ', '') , 'DR. ', '') , 'Dr.', '') , 'DR.', '') , ' ', '') AS name_filter FROM doctors HAVING name_filter LIKE 'abc%';
+
+select name, REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(name, 'DR ', '') , 'Dr ', '') , 'DR. ', '') , 'Dr.', '') , 'DR.', '') AS name_filter FROM doctors HAVING name_filter LIKE 'g%';

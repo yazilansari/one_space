@@ -302,7 +302,7 @@ class Services extends CI_Controller {
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
 		}
-		$q = $this->db->select('id, name, description, image_path AS image')->where(['is_active' => 1, 'city_id' => $city_id])->get('packages');
+		$q = $this->db->select('id, name, description, city_id, budget, image_path AS image')->where(['is_active' => 1])->get('packages');
 		$response = array();
 		if($q->num_rows() > 0) {
 
@@ -421,10 +421,11 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 		if(empty($package)) {
-			$response['success'] = false;
-			$response['message'] = 'Please Select Package.';
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
+			// $response['success'] = false;
+			// $response['message'] = 'Please Select Package.';
+			// header('Content-Type: application/json; charset=utf-8');
+			// echo json_encode($response);exit();
+			$package = NULL;
 		}
 		if(empty($brandsheet)) {
 			$response['success'] = false;
@@ -443,6 +444,7 @@ class Services extends CI_Controller {
 			$response['message'] = 'Please Select Partner Project.';
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($response);exit();
+			// $partner_project = "None";
 		}
 		if(empty($room_type)) {
 			$response['success'] = false;
@@ -639,6 +641,9 @@ class Services extends CI_Controller {
 									$q6 = $this->db->select('price')->where(['category_id' => $val->id, 'brandsheet_id' => $v->brand_sheet_id])->get('skus');
 									if($q6->num_rows() > 0) {
 										$price = $q6->row()->price;
+										if($val->multiplier_enabled == 1) {
+											$price = $price*$val->multiplier_value."";
+										}
 									} else {
 										$price = 0.00;
 									}
@@ -669,6 +674,9 @@ class Services extends CI_Controller {
 											$q6 = $this->db->select('price')->where(['category_id' => $val->id, 'sub_category_id' => $sub_category->id, 'brandsheet_id' => $v->brand_sheet_id])->get('skus');
 											if($q6->num_rows() > 0) {
 												$price = $q6->row()->price;
+												if($val->multiplier_enabled == 1) {
+													$price = $price*$val->multiplier_value."";
+												}
 											} else {
 												$price = 0.00;
 											}
@@ -890,6 +898,10 @@ class Services extends CI_Controller {
 			// echo $this->db->last_query();die();
 			if($q4->num_rows() > 0) {
 				foreach ($q4->result() as $key => $value) {
+					$sub_category_name = 'No Sub Category';
+					if(!empty($value->sub_category_name)) {
+						$sub_category_name = $value->sub_category_name;
+					}
 					$html .= '<tr>
 			    				<td style="font-size: 14px; font-weight: bold;">' . $value->category_name . '</td>
 			    			</tr>';
@@ -899,15 +911,15 @@ class Services extends CI_Controller {
 						$selected = 'No';
 					}
 					$html .= '<tr>
-			    				<td style="font-size: 14px; font-weight: bold;">' . $value->sub_category_name . '</td>
+			    				<td style="font-size: 14px; font-weight: bold;">' . $sub_category_name . '</td>
 			    			</tr>
 			    			<tr>
 			        			<td style="font-size: 13px; font-weight: bold;">' . $selected . '</td>
 			        		</tr>
 			    			<tr>
-			        			<td style="font-size: 12px; font-weight: bold;">' . $value->brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . $value->price . '</td>
+			        			<td style="font-size: 12px; font-weight: bold;">' . $value->brand_sheet_name . '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' . ($value->multiplier_enabled == 1) ? $value->price*$value->multiplier_value."" : $value->price . '</td>
 			        		</tr>';
-			        $total += $value->price;
+			        $total += ($value->multiplier_enabled == 1) ? $value->price*$value->multiplier_value."" : $value->price;
 				}
 				$html .= '<tr><td style="font-size: 16px; font-weight: bold;">Sub Total: &nbsp;&nbsp;&nbsp;&nbsp;'. number_format($total, 2) .'</td></tr></table>';
 			}
@@ -1006,16 +1018,19 @@ class Services extends CI_Controller {
 					$value->image = '';
 				}
 				$value->values = array();
-				$q2 = $this->db->select('requirement_skus.category_id, categories.name AS category, sku_id, brandsheets.name AS brandsheet, requirements.id AS requirement_no, is_freezed, quotation_path, price, has_subcategories')->where('categories.parent_category_id', $value->id)->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->group_by('requirement_skus.category_id')->get('requirement_skus');
+				$q2 = $this->db->select('requirement_skus.category_id, categories.name AS category, sku_id, brandsheets.name AS brandsheet, requirements.id AS requirement_no, is_freezed, quotation_path, price, has_subcategories, multiplier_enabled, multiplier_value')->where('categories.parent_category_id', $value->id)->where('requirement_skus.requirement_id', $requirement_id)->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->group_by('requirement_skus.category_id')->get('requirement_skus');
 				// echo $this->db->last_query();
 				foreach($q2->result() as $key => $val) {
 					if($val->brandsheet == NULL || $val->price == NULL) {
 						$val->brandsheet = '';
 						$val->price = 0;
 					}
+					if($val->multiplier_enabled == 1) {
+						$val->price = $val->price*$val->multiplier_value."";
+					}
 					$val->sub_category_name = '';
 					if($val->has_subcategories != '0') {
-						$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet, price')->where(['sub_categories.category_id' => $val->category_id, 'skus.id' => $val->sku_id])->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->order_by('sub_categories.category_id', 'asc')->get('sub_categories');
+						$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS brandsheet, price, multiplier_enabled, multiplier_value')->where(['sub_categories.category_id' => $val->category_id, 'skus.id' => $val->sku_id])->join('skus', 'skus.sub_category_id = sub_categories.id', 'left')->join('categories', 'skus.category_id = categories.id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->order_by('sub_categories.category_id', 'asc')->get('sub_categories');
 						// unset($value->parent_category_id);
 						// $val->sub_category_name = '';
 						// $val->brandsheet = '';
@@ -1026,6 +1041,9 @@ class Services extends CI_Controller {
 									$valu->sub_category_name = '';
 									$valu->brandsheet = '';
 									$valu->price = 0;
+								}
+								if($valu->multiplier_enabled == 1) {
+									$valu->price = $valu->price*$valu->multiplier_value."";
 								}
 								$total += $valu->price;
 								// if($value->quotation_path) {
@@ -1045,6 +1063,8 @@ class Services extends CI_Controller {
 					}
 					unset($val->category_id);
 					unset($val->sku_id);
+					unset($val->multiplier_enabled);
+					unset($val->multiplier_value);
 					// else {
 
 					// }
@@ -1229,7 +1249,7 @@ class Services extends CI_Controller {
 				// echo $this->db->last_query();
 				unset($value->id);
 				foreach($q2->result() as $val) {
-					$q3 = $this->db->select('brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $val->category_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')
+					$q3 = $this->db->select('brandsheets.name AS name, requirements.id AS requirement_no, price, multiplier_enabled, multiplier_value')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $val->category_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')
 					->get('requirement_skus');
 					// echo $this->db->last_query();
 					$requirement = $q3->result();
@@ -1250,7 +1270,11 @@ class Services extends CI_Controller {
 						if(empty($va->price)) {
 							$va->price = 0;
 						}
-
+						if($va->multiplier_enabled == 1) {
+							$va->price = $va->price*$va->multiplier_value."";
+						}
+						unset($va->multiplier_enabled);
+						unset($va->multiplier_value);
 						$total += $va->price;
 					}
 					$val->requirements = array();
@@ -1262,7 +1286,7 @@ class Services extends CI_Controller {
 							// $val->requirements['subCategories'] = array();
 							foreach($q22->result() as $v) {
 								// $val->requirements = array('subCategories' => $q3->result());
-								$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS name, requirements.id AS requirement_no, price')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $v->category_id, 'skus.id' => $v->sku_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('sub_categories', 'skus.sub_category_id = sub_categories.id', 'left')
+								$q3 = $this->db->select('sub_categories.name AS sub_category_name, brandsheets.name AS name, requirements.id AS requirement_no, price, multiplier_enabled, multiplier_value')->where_in('requirement_skus.requirement_id', $explode_requirement_ids)->where(['categories.id' => $v->category_id, 'skus.id' => $v->sku_id])->join('categories', 'categories.id = requirement_skus.category_id', 'left')->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('brandsheets', 'brandsheets.id = skus.brandsheet_id', 'left')->join('requirements', 'requirements.id = requirement_skus.requirement_id', 'left')->join('sub_categories', 'skus.sub_category_id = sub_categories.id', 'left')
 								->group_by('requirements.id')
 								->get('requirement_skus');
 								// echo $this->db->last_query();
@@ -1286,6 +1310,11 @@ class Services extends CI_Controller {
 									if(empty($va->price)) {
 										$va->price = 0;
 									}
+									if($va->multiplier_enabled == 1) {
+										$va->price = $va->price*$va->multiplier_value."";
+									}
+									unset($va->multiplier_enabled);
+									unset($va->multiplier_value);
 									// $total += $va->price;
 									// array_push($val->requirements['subCategories'], $va);
 									array_push($val->requirements, $va);
@@ -1303,8 +1332,18 @@ class Services extends CI_Controller {
 			}
 			$sub_total = array();
 			foreach ($explode_requirement_ids as $key => $value) {
-				$q4 = $this->db->select('SUM(price) AS price')->where('requirement_skus.requirement_id', $value)->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->get('requirement_skus');
-				$price = $q4->row()->price;
+				$total = 0.00;
+				$q4 = $this->db->select('price, multiplier_enabled, multiplier_value')->where('requirement_skus.requirement_id', $value)->join('skus', 'skus.id = requirement_skus.sku_id', 'left')->join('categories', 'categories.id = requirement_skus.category_id', 'left')->get('requirement_skus');
+				// echo $this->db->last_query();
+				foreach($q4->result() as $key => $v) {
+					if(empty($v->price)) {
+						$v->price = 0;
+					}
+					if($v->multiplier_enabled == 1) {
+						$v->price = $v->price*$v->multiplier_value."";
+					}
+					$total += $v->price;
+				}
 				array_push($sub_total, $price != NUll && !empty($price) ? number_format($price, 2) : 0.00);
 				
 			}
@@ -1823,13 +1862,16 @@ class Services extends CI_Controller {
 
 			// foreach ($q->result() as $key => $value) {
 			$value = $q->row();
-			if($value->partner_project == NULL || $value->start_date == NULL) {
+			if($value->partner_project == NULL) {
 				$value->partner_project = '';
+			} else {
+				$value->partner_project;
+			}
+			if($value->start_date == NULL) {
 				$value->start_date = '';
 			} else {
 				$value->start_date = date('d/m/Y', strtotime($value->start_date));
 			}
-
 
 			if($value->property_type == '1') {
 				$property_type = 'Flat';
@@ -1850,7 +1892,7 @@ class Services extends CI_Controller {
 			$value->project_type = $project_type;
 
 			$value->document_enabled = false;
-		    $value->timeline_enabled = false;
+		    $value->timeLine_enabled = false;
 		    $value->product_enabled = false;
 		    $value->panelist_enabled = false;
 		    $value->daily_work_status_enabled = false;
@@ -1936,7 +1978,7 @@ class Services extends CI_Controller {
 		$q = $this->db->select('name, first_name, last_name, phone, email, fcm_token')->where('id', $user_id)->get('users');
 		$response = array();
 		if($q->num_rows() > 0) {
-			trim($q->row()->name);
+			
 			$response['success'] = true;
 			$response['message'] = 'Fetched Successfully.';
 			$response['response'] = $q->row();
