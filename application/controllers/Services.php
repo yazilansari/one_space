@@ -440,11 +440,11 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 		if(empty($partner_project)) {
-			$response['success'] = false;
-			$response['message'] = 'Please Select Partner Project.';
-			header('Content-Type: application/json; charset=utf-8');
-			echo json_encode($response);exit();
-			// $partner_project = "None";
+			// $response['success'] = false;
+			// $response['message'] = 'Please Select Partner Project.';
+			// header('Content-Type: application/json; charset=utf-8');
+			// echo json_encode($response);exit();
+			$partner_project = NULL;
 		}
 		if(empty($room_type)) {
 			$response['success'] = false;
@@ -489,7 +489,7 @@ class Services extends CI_Controller {
 			echo json_encode($response);exit();
 		}
 
-		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => ($partner_project == 'none') ? NULL : $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'city_id' => $city_id, 'created_at' => date('Y-m-d H:i:s')));
+		$q = $this->db->insert('projects', array('user_id' => $user_id, 'name' => $property_name, 'package_id ' => $package, 'brandsheet_id ' => $brandsheet, 'property_type' => $property_type, 'project_partner_id' => $partner_project, 'room_type_id' => $room_type, 'project_type' => $project_type, 'start_from' => $project_start_from, 'selected_budget' => $budget, 'carpet_area' => $total_area, 'theme_id' => $theme_id, 'city_id' => $city_id, 'created_at' => date('Y-m-d H:i:s')));
 		if($q) {
 			$response['success'] = true;
 			$response['message'] = 'Data Inserted Successfully.';
@@ -1602,14 +1602,19 @@ class Services extends CI_Controller {
 					}
 					$value->categories = '';
 					$categories = [];
+					$selected_categories = [];
 					$q3 = $this->db->select('name')->where('parent_category_id', $value->id)->get('categories');
-					foreach($q3->result() as $key => $val) {
-						array_push($categories, $val->name);
+					foreach($q3->result() as $key => $valu) {
+						array_push($categories, $valu->name);
 					}
-					$categories_impl = implode(', ', $categories);
-					$value->categories = $categories_impl;
+					$q4 = $this->db->select('categories.name')->where('project_id', $project_id)->where('parent_category_id', $value->id)->join('skus', 'skus.id = project_requirement_products.sku_id', 'left')->join('categories', 'categories.id = skus.category_id', 'left')->group_by('project_requirement_products.sku_id')->get('project_requirement_products');
+					foreach($q4->result() as $key => $val) {
+						array_push($selected_categories, $val->name);
+					}
+					$selected_categories_impl = implode(', ', $selected_categories);
+					$value->categories = $selected_categories_impl;
 					$value->total_categories_count = count($categories);
-					$value->selected_categories_count = 0;
+					$value->selected_categories_count = count($selected_categories);
 					array_push($response['response']['parent_categories'], $value);
 				}
 				
@@ -1680,18 +1685,23 @@ class Services extends CI_Controller {
 				->join('skus', ' skus.id = requirement_skus.sku_id', 'left')
 				->join('brandsheets', ' brandsheets.id = skus.brandsheet_id', 'left')->where('requirement_skus.category_id', $value->id)
 				->where('projects.id', $project_id)
-				->where('is_selected', 1)->get('requirement_skus');
+				->where('is_freezed', 1)->get('requirement_skus');
 				// echo $this->db->last_query();
 				$selected_brandsheet = '';
-				$selection_status = 0;
 				$selected_sub_category = '';
 				foreach($q2->result() as $key => $val) {
 					$selected_brandsheet = $val->brandsheet;
 				}
-				if($selected_brandsheet == '') {
-					$selection_status = 2;
+				$q4 = $this->db->select('categories.name')->where('project_id', $project_id)->where('skus.category_id', $value->id)->join('skus', 'skus.id = project_requirement_products.sku_id', 'left')->join('categories', 'categories.id = skus.category_id', 'left')->group_by('project_requirement_products.sku_id')->get('project_requirement_products');
+				// echo $this->db->last_query();
+				if($q4->num_rows() >= 1) {
+					$selection_status = 0;
 				} else {
-					$selection_status = 1;
+					if($selected_brandsheet == '') {
+						$selection_status = 2;
+					} else {
+						$selection_status = 1;
+					}
 				}
 				$value->selected_brandsheet = $selected_brandsheet;
 				$value->selection_status = $selection_status;
@@ -1703,17 +1713,22 @@ class Services extends CI_Controller {
 				->join('skus', ' skus.id = requirement_skus.sku_id', 'left')
 				->join('brandsheets', ' brandsheets.id = skus.brandsheet_id', 'left')
 				->where('projects.id', $project_id)
-				->where('is_selected', 1)
+				->where('is_freezed', 1)
 				->get('requirement_skus');
 				// echo $this->db->last_query();
 				foreach ($q3->result() as $key => $va) {
 					$selected_brandsheet = $va->brandsheet == NULL ? '' : $va->brandsheet;
 					$selected_sub_category = $va->sub_category_name;
 				}
-				if($selected_brandsheet == '') {
-					$selection_status = 2;
+				$q4 = $this->db->select('categories.name')->where('project_id', $project_id)->where('skus.category_id', $value->id)->join('skus', 'skus.id = project_requirement_products.sku_id', 'left')->join('categories', 'categories.id = skus.category_id', 'left')->join('sub_categories', 'sub_categories.id = skus.sub_category_id', 'left')->group_by('project_requirement_products.sku_id')->get('project_requirement_products');
+				if($q4->num_rows() >= 1) {
+					$selection_status = 0;
 				} else {
-					$selection_status = 1;
+					if($selected_brandsheet == '') {
+						$selection_status = 2;
+					} else {
+						$selection_status = 1;
+					}
 				}
 				$value->selected_brandsheet = $selected_brandsheet;
 				$value->selection_status = $selection_status;
@@ -2107,6 +2122,70 @@ class Services extends CI_Controller {
 				$response['message'] = 'No Freeze Requirement Found.';
 				header('Content-Type: application/json; charset=utf-8');
 				echo json_encode($response);exit();
+		}
+	}
+
+	public function store_product_selection()
+	{
+		$post_data = file_get_contents("php://input");
+    	$request = json_decode($post_data);
+
+    	if($request->project_id == '') {
+			$response['success'] = false;
+			$response['message'] = 'Project Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if($request->category_id == '') {
+			$response['success'] = false;
+			$response['message'] = 'Category Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if($request->brand_sheet_id == '') {
+			$response['success'] = false;
+			$response['message'] = 'Brand Sheet Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if($request->sku_product_id == '') {
+			$response['success'] = false;
+			$response['message'] = 'Sku Product Id is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		if (count($request->sku_metas) === 0) {
+     		$response['success'] = false;
+			$response['message'] = 'Sku Metas is Missing.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		}
+		for ($i=0; $i < count($request->sku_metas); $i++) {
+			if($request->sub_category_id == '') {
+				$q3 = $this->db->select('id')->where(['skus.brandsheet_id' => $request->brand_sheet_id, 'skus.category_id' => $request->category_id])->get('skus');
+				if($q3->num_rows() > 0) {
+					$sku_id = $q3->row()->id;
+				}
+				$q = $this->db->insert('project_requirement_products', array('project_id' => $request->project_id, 'sku_product_id' => $request->sku_product_id, 'sku_id ' => $sku_id, 'sku_meta_name_id' => $request->sku_metas[$i]->sku_meta_name_id, 'sku_meta_value_id' => $request->sku_metas[$i]->sku_meta_value_id, 'created_at' => date('Y-m-d H:i:s')));
+			} else {
+				$q3 = $this->db->select('id')->where(['skus.brandsheet_id' => $request->brand_sheet_id, 'skus.category_id' => $request->category_id, 'skus.sub_category_id' => $request->sub_category_id])->get('skus');
+				if($q3->num_rows() > 0) {
+					$sku_id = $q3->row()->id;
+				}
+				$q = $this->db->insert('project_requirement_products', array('project_id' => $request->project_id, 'sku_product_id' => $request->sku_product_id, 'sku_id ' => $sku_id, 'sku_meta_name_id' => $request->sku_metas[$i]->sku_meta_name_id, 'sku_meta_value_id' => $request->sku_metas[$i]->sku_meta_value_id, 'created_at' => date('Y-m-d H:i:s')));
+			}
+		}
+
+		if($q) {
+			$response['success'] = true;
+			$response['message'] = 'Data Inserted Successfully.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
+		} else {
+			$response['success'] = false;
+			$response['message'] = 'Error Occurred While Inserting Data.';
+			header('Content-Type: application/json; charset=utf-8');
+			echo json_encode($response);exit();
 		}
 	}
 }
