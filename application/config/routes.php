@@ -85,3 +85,4 @@ $route['v1/fetchProjectTimelines'] = 'services/fetch_project_timelines';
 $route['v1/fetchUser'] = 'services/fetch_user';
 $route['v1/fetchProductsSelection'] = 'services/fetch_products_selection';
 $route['v1/storeProductSelection'] = 'services/store_product_selection';
+$route['v1/fetchWorkStatus'] = 'services/fetch_work_status';
